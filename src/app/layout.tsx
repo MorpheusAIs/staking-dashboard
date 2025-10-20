@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Provider } from "staking-dashboard/components/ui/provider";
+import Layouts from "staking-dashboard/containers/Layouts";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -14,7 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <Provider>{children}</Provider>
+        <Provider>
+          <Layouts>{children}</Layouts>
+        </Provider>
       </body>
     </html>
   );
