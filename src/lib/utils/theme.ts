@@ -36,8 +36,11 @@ const config = defineConfig({
 
       // =============== BORDER RADIUS
       radii: {
+        xs: { value: "4px" },
+        sm: { value: "6px" },
         md: { value: "10px" },
         lg: { value: "16px" },
+        xl: { value: "20px" },
       },
 
       // =============== COLORS

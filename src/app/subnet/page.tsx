@@ -3,7 +3,7 @@ import { SubnetStaking } from "staking-dashboard/containers/SubnetStaking";
 
 export default function SubnetPage() {
   return (
-    <Container pt={6} maxW="container.xl">
+    <Container maxW="3xl" width="full">
       <SubnetStaking />
     </Container>
   );

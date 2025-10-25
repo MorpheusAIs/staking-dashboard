@@ -1,20 +1,12 @@
 "use client";
-import {
-  Stack,
-  Button,
-  useBreakpoint,
-  useMediaQuery,
-  useBreakpointValue,
-  Drawer,
-  HStack,
-} from "@chakra-ui/react";
+import { Stack, useBreakpoint, Drawer, HStack } from "@chakra-ui/react";
 import Image from "next/image";
 import LogoSrc from "../../../public/logo.png";
-import { MdOutlineWallet } from "react-icons/md";
 import { RxHamburgerMenu } from "react-icons/rx";
-import { system } from "staking-dashboard/utils/theme";
 import { useState } from "react";
 import { SideBarContent } from "../SideBar";
+import WalletConnectButton from "../WalletConnectButton";
+import TokenBalance from "../TokenBalance";
 
 /**
  * ===========================
@@ -82,12 +74,10 @@ export const Header = () => {
         justifyContent="space-between"
       >
         {renderIcon()}
-        <Stack>
-          <Button variant="solid" bgColor="primary" color="white">
-            <MdOutlineWallet />
-            Connect Wallet
-          </Button>
-        </Stack>
+        <HStack gap={5}>
+          <TokenBalance />
+          <WalletConnectButton />
+        </HStack>
       </Stack>
     </>
   );

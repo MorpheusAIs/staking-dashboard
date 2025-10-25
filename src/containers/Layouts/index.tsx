@@ -5,6 +5,7 @@ import Header from "staking-dashboard/components/Header";
 import SideBar from "staking-dashboard/components/SideBar";
 import BackgroundImage from "../../../public/background-logo.svg";
 import SocialMedia from "staking-dashboard/components/SocialMedia";
+import { Toaster } from "staking-dashboard/components/ui/toaster";
 
 export type LayoutsProps = {
   children: ReactNode;
@@ -43,7 +44,8 @@ export const Layouts: React.FC<LayoutsProps> = (props) => {
       <Header />
       <HStack h="100%" width="full" justifyContent={"center"}>
         <SideBar />
-        <Stack>{children}</Stack>
+        <Toaster />
+        {children}
         <SocialMedia />
       </HStack>
       <Text

@@ -2,7 +2,7 @@
 
 import { HStack, VStack, Text, Stack, StackProps } from "@chakra-ui/react";
 import map from "lodash/map";
-import { SideBarItems } from "staking-dashboard/utils/constants";
+import { SideBarItems } from "staking-dashboard/lib/utils/constants";
 import { usePathname, useRouter } from "next/navigation";
 
 type SideBarContentProps = StackProps & {
