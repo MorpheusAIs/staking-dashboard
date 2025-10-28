@@ -1,5 +1,5 @@
 import { mainnetChains, testnetChains } from "./networks";
-import { CHAIN_ID } from "./utils/constants";
+import { CHAIN_ID } from "./configs/constants";
 
 // MOR token addresses by chain ID - derived from networks.ts for single source of truth
 export const morTokenContracts: Record<number, string> = {

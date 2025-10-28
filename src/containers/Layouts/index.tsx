@@ -1,5 +1,4 @@
-import { Box, HStack, Stack, Text, VStack } from "@chakra-ui/react";
-import Image from "next/image";
+import { HStack, Text, VStack } from "@chakra-ui/react";
 import { ReactNode } from "react";
 import Header from "staking-dashboard/components/Header";
 import SideBar from "staking-dashboard/components/SideBar";

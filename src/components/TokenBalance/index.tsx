@@ -5,7 +5,7 @@ import { useMORBalances } from "staking-dashboard/hooks/useMORBalances";
 import { useEffect } from "react";
 import { formatBalance } from "staking-dashboard/lib/helpers";
 import { BaseIcon } from "../Icons/BaseIcon";
-import { CHAIN_ID } from "staking-dashboard/lib/utils/constants";
+import { CHAIN_ID } from "staking-dashboard/lib/configs/constants";
 
 export type TokenBalanceProps = {};
 

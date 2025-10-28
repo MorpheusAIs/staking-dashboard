@@ -16,7 +16,8 @@ const config = defineConfig({
     "html, body": {
       margin: 0,
       padding: 0,
-      backgroundColor: "bg",
+      backgroundColor:
+        "linear-gradient(to bottom, var(--chakra-colors-secondary) 60%,rgba(23, 156, 101, 0.16) 100%)",
     },
   },
   theme: {
@@ -73,6 +74,7 @@ const config = defineConfig({
     // ============== SEMANTIC TOKENS
     semanticTokens: {
       colors: {
+        // @TODO fix this
         bg: {
           value: "{colors.background}",
         },

@@ -1,10 +1,11 @@
 import { ChainContract, formatUnits, isAddress } from "viem";
-import { addresses, CHAIN_ID, stakingErrorMap } from "./utils/constants";
+import { addresses, CHAIN_ID, stakingErrorMap } from "./configs/constants";
 import { getChainById } from "./networks";
 import {
   ExtractChainConfigArgs,
   ExtractChainConfigReturn,
 } from "staking-dashboard/@types/helpers";
+import { SUBNET_CONFIG } from "./configs/subnet.config";
 
 // Helper to ensure string arrays for RPC URLs
 export function ensureStringArray(
@@ -63,28 +64,25 @@ export const validateAndExtractChainConfig = (
   args: ExtractChainConfigArgs
 ): ExtractChainConfigReturn | null => {
   const { networkChainId, isTestnet, onError, onWarning } = args;
+  console.log("networkChainId, isTestnet", networkChainId, isTestnet);
   const chain = getChainById(networkChainId, isTestnet ? "testnet" : "mainnet");
 
+  console.log("chain config", chain);
+
   if (!chain) {
-    onError(`Could not find chain configuration for chainId ${networkChainId}`);
     return null;
   }
 
   // === Builders Contract
   const buildersAddr = chain.contracts?.builders?.address;
+  console.log("buildersAddr", buildersAddr);
   if (!buildersAddr || !isAddress(buildersAddr)) {
-    onError(
-      `Invalid or missing builders contract address for chain ${networkChainId}`
-    );
     return null;
   }
 
   // === MOR Token Contract
   const tokenAddr = chain.contracts?.morToken?.address;
   if (!tokenAddr || !isAddress(tokenAddr)) {
-    onError(
-      `Invalid or missing MOR token contract address for chain ${networkChainId}`
-    );
     return null;
   }
 
@@ -164,4 +162,107 @@ export function formatTimePeriod(seconds: number | string): string {
 // Format a value to one decimal place
 export const formatToOneDecimal = (value: number): string => {
   return (Math.floor(value * 10) / 10).toString();
+};
+
+export const formatStakerData = (
+  stakerData: unknown,
+  isTestnet = false
+): {
+  stakedRaw: bigint;
+  stakedFormattedForUI: string;
+  claimLockEnd: string;
+  lastStake: string;
+  timeLeft: string;
+} | null => {
+  if (!stakerData) return null;
+
+  let staked: bigint;
+  let lastStake: bigint;
+  let claimLockEndRaw: bigint;
+
+  if (isTestnet) {
+    // Testnet data structure: [staked, virtualStaked, pendingRewards, rate, lastStake, claimLockEnd]
+    const [stakedData, , , , lastStakeData, claimLockEndData] = stakerData as [
+      bigint,
+      bigint,
+      bigint,
+      bigint,
+      bigint,
+      bigint
+    ];
+    staked = stakedData;
+    lastStake = lastStakeData;
+    claimLockEndRaw = claimLockEndData;
+  } else {
+    // Mainnet structure from usersData:
+    // [lastDeposit, claimLockStart, deposited, virtualDeposited]
+    // [uint128, uint128, uint256, uint256]
+    // Only extract the values we need (index 0 and 2)
+    const stakerArray = stakerData as [bigint, bigint, bigint, bigint];
+    const lastStakeData = stakerArray[0];
+    const depositedData = stakerArray[2];
+    staked = depositedData;
+    lastStake = lastStakeData;
+    // For mainnet, calculate claimLockEnd
+    claimLockEndRaw = BigInt(0); // Default to 0
+    if (lastStake !== BigInt(0)) {
+      const lpSeconds = SUBNET_CONFIG.lockPeriodInSeconds;
+      claimLockEndRaw = BigInt(Number(lastStake) + lpSeconds);
+    }
+  }
+
+  // Determine effective claimLockEnd. If contract returned 0 (or an old value),
+  // fallback to lastStake + appropriate lock period based on network
+  let effectiveClaimLockEnd = claimLockEndRaw;
+  if (
+    claimLockEndRaw === BigInt(0) ||
+    Number(claimLockEndRaw) < Number(lastStake)
+  ) {
+    const lpSeconds = SUBNET_CONFIG.lockPeriodInSeconds;
+    effectiveClaimLockEnd = BigInt(Number(lastStake) + lpSeconds);
+  }
+
+  // Format the staked amount for UI display
+  const formattedStaked = parseFloat(formatUnits(staked, 18));
+  // Calculate time until unlock
+  const now = Math.floor(Date.now() / 1000);
+  const claimLockEndNumber = Number(effectiveClaimLockEnd);
+  let calculatedTimeLeft: string;
+
+  if (claimLockEndNumber > now) {
+    const secondsRemaining = claimLockEndNumber - now;
+
+    if (secondsRemaining < 60) {
+      calculatedTimeLeft = `${secondsRemaining} seconds`;
+    } else if (secondsRemaining < 3600) {
+      calculatedTimeLeft = `${Math.floor(secondsRemaining / 60)} minutes`;
+    } else if (secondsRemaining < 86400) {
+      calculatedTimeLeft = `${Math.floor(secondsRemaining / 3600)} hours`;
+    } else {
+      calculatedTimeLeft = `${Math.floor(secondsRemaining / 86400)} days`;
+    }
+  } else {
+    calculatedTimeLeft = "Unlocked";
+  }
+
+  console.log("Staker data processed:", {
+    isTestnet,
+    stakedRaw: staked.toString(),
+    stakedFormattedForUI: formattedStaked.toFixed(2),
+    claimLockEnd: new Date(Number(effectiveClaimLockEnd) * 1000).toLocaleString(
+      "en-US"
+    ),
+    lastStake: new Date(Number(lastStake) * 1000).toLocaleString("en-US"),
+    timeLeft: calculatedTimeLeft,
+  });
+
+  return {
+    stakedRaw: staked,
+    stakedFormattedForUI: formattedStaked.toFixed(2),
+    claimLockEnd: new Date(Number(effectiveClaimLockEnd) * 1000).toLocaleString(
+      "en-US"
+    ),
+    lastStake: new Date(Number(lastStake) * 1000).toLocaleString("en-US"),
+    timeLeft: calculatedTimeLeft,
+  };
 };

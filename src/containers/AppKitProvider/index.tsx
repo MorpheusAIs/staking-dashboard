@@ -2,7 +2,7 @@
 
 import { cookieToInitialState, WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { wagmiAdapter } from "staking-dashboard/lib/utils/reownConfig";
+import { wagmiAdapter } from "staking-dashboard/lib/configs/reownConfig";
 import { PropsWithChildren } from "react";
 
 const queryClient = new QueryClient();

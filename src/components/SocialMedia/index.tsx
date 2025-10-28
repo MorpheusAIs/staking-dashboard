@@ -1,7 +1,7 @@
 "use client";
 
 import { VStack, Stack, HStack } from "@chakra-ui/react";
-import { SocialMediaLinks } from "staking-dashboard/lib/utils/constants";
+import { SocialMediaLinks } from "staking-dashboard/lib/configs/constants";
 import map from "lodash/map";
 
 /**

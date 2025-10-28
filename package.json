@@ -7,7 +7,7 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "ui:generate:types": "npx @chakra-ui/cli typegen ./src/utils/theme.ts"
+    "ui:generate:types": "npx @chakra-ui/cli typegen ./src/lib/utils/theme.ts"
   },
   "dependencies": {
     "@chakra-ui/react": "^3.27.1",

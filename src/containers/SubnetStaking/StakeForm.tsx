@@ -3,13 +3,14 @@ import { Button, Input, InputGroup, Text, VStack } from "@chakra-ui/react";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { arbitrum } from "wagmi/chains";
 import { useAccount, useSwitchChain } from "wagmi";
-import { useStaking } from "staking-dashboard/hooks/useStaking";
 import "staking-dashboard/app/global.css";
 import { toaster } from "staking-dashboard/components/ui/toaster";
 import { formatToOneDecimal } from "staking-dashboard/lib/helpers";
+import { SUBNET_CONFIG } from "staking-dashboard/lib/configs/subnet.config";
+import { formatEther } from "viem";
 
 export type StakeFormProps = {
   subnetId: string;
@@ -20,6 +21,7 @@ export type StakeFormProps = {
   tokenBalance: number;
   isLoadingData: boolean;
   needsApproval: boolean;
+  isSubmitting?: boolean;
   isCorrectNetwork: () => boolean;
   onHandleApprove: (amount: string) => Promise<void>;
   onHandleStaking: (amount: string) => Promise<void>;
@@ -50,10 +52,11 @@ const schema = yup.object({
 export const StakeForm: React.FC<StakeFormProps> = (props) => {
   const {
     subnetId,
-    isTestnet,
     isStaking,
+    isTestnet,
     tokenSymbol,
     isApproving,
+    isSubmitting,
     tokenBalance,
     isLoadingData,
     needsApproval,
@@ -79,12 +82,27 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
       stakeAmount: "",
     },
   });
-  const { isConnected, chainId } = useAccount();
+  const { isConnected, chainId, chain } = useAccount();
   const { switchChain } = useSwitchChain();
 
   // =============== VARIABLES
   const stakeAmount = watch("stakeAmount");
   const validStakeAmount = stakeAmount && parseFloat(stakeAmount) > 0;
+  const approvalState =
+    isApproving ||
+    (needsApproval && stakeAmount && parseFloat(stakeAmount) > 0);
+
+  // Show warning based on logic or explicit flag
+  const displayWarning =
+    !isCorrectNetwork() ||
+    needsApproval ||
+    (!!stakeAmount && parseFloat(stakeAmount) > 0) ||
+    (!!stakeAmount &&
+      parseFloat(stakeAmount) >
+        (tokenBalance
+          ? parseFloat(formatEther(tokenBalance as unknown as bigint))
+          : 0));
+  tokenBalance !== undefined && parseFloat(stakeAmount) > tokenBalance;
 
   // =============== EFFECTS
   // Check if approval is needed when stake amount changes
@@ -200,6 +218,54 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
     }
   };
 
+  // =============== MEMO
+  const networksToDisplay = useMemo(() => {
+    if (!chain) {
+      // fallback logic if wallet not connected
+      if (isTestnet) {
+        console.log("[BuilderPage] Fallback to testnet network");
+        return ["Arbitrum Sepolia"];
+      }
+      console.log("[BuilderPage] Fallback to Base network");
+      return ["Base"];
+    }
+
+    // map common chain names
+    switch (chain.id) {
+      case 42161:
+        return ["Arbitrum"];
+      case 8453:
+        return ["Base"];
+      case 421614:
+        return ["Arbitrum Sepolia"];
+      default:
+        return [chain.name]; // fallback to whatever network user connected to
+    }
+  }, [chain, isTestnet]);
+
+  // =============== HELPERS
+  // Check if entered amount is above minimum and below maximum
+  const isAmountValid = () => {
+    const amount = parseFloat(stakeAmount);
+    if (isNaN(amount) || amount <= 0) return false;
+
+    // Skip minimum validation if minAmount is undefined
+    if (
+      SUBNET_CONFIG.minDeposit !== undefined &&
+      amount < SUBNET_CONFIG.minDeposit
+    )
+      return false;
+    if (tokenBalance !== undefined && amount > tokenBalance) return false;
+
+    return true;
+  };
+
+  // New: Check if the amount is just positive for approval
+  const hasPositiveAmount = () => {
+    const amount = parseFloat(stakeAmount);
+    return !isNaN(amount) && amount > 0;
+  };
+
   // =============== RENDER
   const renderButtonText = () => {
     if (!isCorrectNetwork()) return "Switch to Arbitrum";
@@ -208,6 +274,15 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
     if (needsApproval && stakeAmount && parseFloat(stakeAmount) > 0)
       return `Approve ${tokenSymbol}`;
     return `Stake ${tokenSymbol}`;
+  };
+
+  const renderWarningText = () => {
+    if (!isCorrectNetwork())
+      return `Please switch to ${networksToDisplay[0]} network to stake`;
+    if (needsApproval && stakeAmount && parseFloat(stakeAmount) > 0) {
+      return `You need to approve ${tokenSymbol} spending first`;
+    }
+    return `Warning: You don't have enough ${tokenSymbol}`;
   };
 
   // =============== VIEWS
@@ -243,6 +318,11 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
                       color="primary"
                       variant={"outline"}
                       onClick={onMaxClick}
+                      disabled={
+                        tokenBalance === undefined ||
+                        tokenBalance <= 0 ||
+                        isSubmitting
+                      }
                     >
                       Max
                     </Button>
@@ -271,6 +351,9 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
               </VStack>
             )}
           />
+          {displayWarning && (
+            <Text color="colorPalette.warning">{renderWarningText()}</Text>
+          )}
           <Button
             type="submit"
             bgColor="primary"
@@ -278,6 +361,11 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
             fontWeight={"bold"}
             width={"full"}
             borderRadius={"sm"}
+            disabled={
+              isSubmitting ||
+              // For approval buttons, only require a positive amount
+              (approvalState ? !hasPositiveAmount() : !isAmountValid())
+            }
           >
             {renderButtonText()}
           </Button>

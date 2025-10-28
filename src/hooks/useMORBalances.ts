@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { morTokenContracts } from "staking-dashboard/lib/contracts";
-import { CHAIN_ID, MOR_ABI } from "staking-dashboard/lib/utils/constants";
+import { CHAIN_ID, MOR_ABI } from "staking-dashboard/lib/configs/constants";
 import { useReadContract } from "wagmi";
 
 declare global {

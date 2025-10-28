@@ -9,7 +9,7 @@ import {
   ChainConfig,
   NetworkEnvironment,
 } from "staking-dashboard/@types/common";
-import { mainnetRpcUrls } from "./utils/constants";
+import { mainnetRpcUrls } from "./configs/constants";
 import { ensureStringArray, toContract } from "./helpers";
 
 // Mainnets Configuration
