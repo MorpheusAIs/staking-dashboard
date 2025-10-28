@@ -6,11 +6,12 @@
     "dev": "next dev",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "ui:generate:types": "npx @chakra-ui/cli typegen ./src/utils/theme.ts"
   },
   "dependencies": {
     "@chakra-ui/react": "^3.27.1",
-    "@emotion/react": "^11.14.0",
+    "lodash": "^4.17.21",
     "next": "15.5.6",
     "next-themes": "^0.4.6",
     "react": "19.1.0",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@types/lodash": "^4.17.20",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

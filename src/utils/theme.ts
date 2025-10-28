@@ -1,7 +1,17 @@
-import { createSystem, defaultConfig, defineConfig } from "@chakra-ui/react";
+import {
+  createSystem,
+  defaultConfig,
+  defineConfig,
+  defineRecipe,
+} from "@chakra-ui/react";
+
+export const buttonRecipe = defineRecipe({
+  base: {
+    borderRadius: "md",
+  },
+});
 
 const config = defineConfig({
-  strictTokens: true,
   globalCss: {
     "html, body": {
       margin: 0,
@@ -10,7 +20,27 @@ const config = defineConfig({
     },
   },
   theme: {
+    // =============== RECIPES
+    recipes: {
+      button: buttonRecipe,
+    },
+
     tokens: {
+      // =============== FONT SIZES
+      fontSizes: {
+        sm: { value: "14px" },
+        md: { value: "16px" },
+        lg: { value: "18px" },
+        xl: { value: "20px" },
+      },
+
+      // =============== BORDER RADIUS
+      radii: {
+        md: { value: "10px" },
+        lg: { value: "16px" },
+      },
+
+      // =============== COLORS
       colors: {
         primary: {
           value: "#20DC8E",
@@ -36,6 +66,8 @@ const config = defineConfig({
         },
       },
     },
+
+    // ============== SEMANTIC TOKENS
     semanticTokens: {
       colors: {
         bg: {
