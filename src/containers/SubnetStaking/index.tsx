@@ -58,15 +58,6 @@ export const SubnetStaking = () => {
       console.log(
         "Transaction successful (stake/withdraw/claim), refreshing staking table and current user staker data."
       );
-      refreshStakingDataRef.current = true; // For the main staking table
-      // const currentStakeAmount = stakeAmount; // Capture current stake amount
-      // setStakeAmount(""); // Clear stake input
-
-      // Signal the WithdrawalPositionCard to reset its withdrawal amount
-      if (window && window.document) {
-        const resetWithdrawEvent = new CustomEvent("reset-withdraw-form");
-        window.document.dispatchEvent(resetWithdrawEvent);
-      }
 
       // Refetch the current user's staker data with logging
       if (refetchStakerDataForUser) {
@@ -85,29 +76,6 @@ export const SubnetStaking = () => {
       } else {
         console.warn("refetchStakerDataForUser is not available");
       }
-
-      // Force refresh approval state after successful transaction
-      // Use timeout to allow blockchain state to update
-      // setTimeout(() => {
-      //   console.log(
-      //     "Refreshing approval state after successful transaction..."
-      //   );
-      //   if (
-      //     refreshApprovalRef.current &&
-      //     currentStakeAmount &&
-      //     parseFloat(currentStakeAmount) > 0
-      //   ) {
-      //     try {
-      //       const result = refreshApprovalRef.current(currentStakeAmount);
-      //       console.log(
-      //         "Successfully refreshed approval state after transaction, result:",
-      //         result
-      //       );
-      //     } catch (error: unknown) {
-      //       console.error("Error refreshing approval state:", error);
-      //     }
-      //   }
-      // }, 2000); // 2 second delay to allow blockchain state to update
     },
     lockPeriodInSeconds: SUBNET_CONFIG.lockPeriodInSeconds,
   });

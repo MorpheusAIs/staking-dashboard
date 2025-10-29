@@ -12,6 +12,7 @@ import {
 import {
   useAccount,
   useChainId,
+  useConfig,
   useReadContract,
   useWaitForTransactionReceipt,
   useWriteContract,
@@ -32,6 +33,7 @@ import { validatePreApproval, validatePreStake } from "./helpers";
 import { useNetwork } from "staking-dashboard/containers/NetworkProvider";
 import { getSafeWalletUrlIfApplicable } from "staking-dashboard/lib/configs/safe-wallet-detection";
 import { showToast } from "staking-dashboard/lib/showToast";
+import { waitForTransactionReceipt } from "wagmi/actions";
 
 export const useStaking = (args: UseStakingProps) => {
   const { subnetId, networkChainId, onTxSuccess, lockPeriodInSeconds } = args;
@@ -66,6 +68,7 @@ export const useStaking = (args: UseStakingProps) => {
   const [isNetworkSwitching, setIsNetworkSwitching] = useState(false);
   // =============== HOOKS
   const walletChainId = useChainId();
+  const config = useConfig();
   const { address: connectedAddress } = useAccount();
   const { switchToChain } = useNetwork();
 
@@ -73,41 +76,35 @@ export const useStaking = (args: UseStakingProps) => {
   const isTestnet = networkChainId === arbitrumSepolia.id;
 
   // Helper function to show enhanced toast with Safe wallet link if applicable
-  const showEnhancedLoadingToast = useCallback(
-    async (message: string, id?: string) => {
-      if (connectedAddress && networkChainId) {
-        try {
-          const safeWalletUrl = await getSafeWalletUrlIfApplicable(
-            connectedAddress,
-            networkChainId
-          );
-          if (safeWalletUrl) {
-            toaster.create({
-              description: message,
-              type: "loading",
-              id,
-              action: {
-                label: "Open Safe Wallet",
-                onClick: () => window.open(safeWalletUrl, "_blank"),
-              },
-            });
-          } else {
-            toaster.create({
-              description: message,
-              type: "loading",
-              id,
-            });
-          }
-        } catch (error) {
-          toaster.dismiss(id);
+  const showEnhancedLoadingToast = async (message: string, id: string) => {
+    if (connectedAddress && networkChainId) {
+      showToast({
+        description: message,
+        type: "loading",
+        id,
+      });
+      try {
+        const safeWalletUrl = await getSafeWalletUrlIfApplicable(
+          connectedAddress,
+          networkChainId
+        );
+        if (safeWalletUrl) {
+          toaster.update(id, {
+            description: message,
+            type: "loading",
+            action: {
+              label: "Open Safe Wallet",
+              onClick: () => window.open(safeWalletUrl, "_blank"),
+            },
+          });
         }
-      } else {
+      } catch (error) {
         toaster.dismiss(id);
       }
-    },
-    [connectedAddress, networkChainId]
-  );
-
+    } else {
+      toaster.dismiss(id);
+    }
+  };
   // =============== HELPERS
   // Check if approval is needed and update state
   const checkAndUpdateApprovalNeeded = useCallback(
@@ -136,28 +133,6 @@ export const useStaking = (args: UseStakingProps) => {
         // Standard approval check for all networks (including Base)
         // Fixed: Use the same logic for all networks to avoid Base network issues
         const approvalNeeded = currentAllowance < parsedAmount;
-
-        // @TODO remove
-        console.log(
-          `Approval check on ${
-            isTestnet ? "testnet" : "mainnet"
-          } (chain ${networkChainId}):`,
-          {
-            parsedAmount: parsedAmount.toString(),
-            currentAllowance: currentAllowance.toString(),
-            formattedAmount: formatEther(parsedAmount),
-            formattedAllowance: formatEther(currentAllowance),
-            needsApproval: approvalNeeded,
-            tokenAddress,
-            contractAddress,
-            networkName:
-              networkChainId === 8453
-                ? "Base"
-                : networkChainId === 42161
-                ? "Arbitrum"
-                : "Unknown",
-          }
-        );
 
         setNeedsApproval(approvalNeeded);
         return approvalNeeded;
@@ -251,7 +226,10 @@ export const useStaking = (args: UseStakingProps) => {
   };
 
   // Handle withdraw MOR
-  const onHandleWithdraw = async (amount: string) => {
+  const onHandleWithdraw = async (
+    amount: string,
+    onWithDrawSuccess: () => void
+  ) => {
     if (!connectedAddress || !isCorrectNetwork()) {
       toaster.create({
         title: "Cannot withdraw: Wallet or network issue.",
@@ -303,13 +281,27 @@ export const useStaking = (args: UseStakingProps) => {
 
       // Both testnet (V2) and mainnet contracts use the same withdraw interface
       // withdraw(bytes32 subnetId_, uint256 amount_)
-      writeWithdraw({
-        address: contractAddress,
-        abi: isTestnet ? BuilderSubnetsV2Abi : BuildersAbi, // Use BuildersAbi for mainnet
-        functionName: "withdraw",
-        args: [subnetId, parsedAmount],
-        chainId: networkChainId,
-      });
+      await writeWithdraw(
+        {
+          address: contractAddress,
+          abi: isTestnet ? BuilderSubnetsV2Abi : BuildersAbi, // Use BuildersAbi for mainnet
+          functionName: "withdraw",
+          args: [subnetId, parsedAmount],
+          chainId: networkChainId,
+        },
+        {
+          onSuccess: async (result) => {
+            console.log("result from writeWithdraw", result);
+            const receipt = await waitForTransactionReceipt(config, {
+              hash: result,
+            });
+            console.log("receipt", receipt);
+            if (receipt.status === "success") {
+              onWithDrawSuccess?.();
+            }
+          },
+        }
+      );
     } catch (error) {
       console.error("Error in handleWithdraw:", error);
       toaster.create({
@@ -630,19 +622,7 @@ export const useStaking = (args: UseStakingProps) => {
     isPending: isApprovePending,
     error: approveError,
     reset: resetApproveContract,
-  } = useWriteContract({
-    mutation: {
-      onError: (error) => {
-        const errorMessage = formatStakingError(error, "approveError");
-        showToast({
-          title: "Token Approval Failed",
-          description: errorMessage,
-          type: "error",
-          id: "approve-toast",
-        });
-      },
-    },
-  });
+  } = useWriteContract();
 
   const {
     data: withdrawTxResult,
@@ -650,38 +630,7 @@ export const useStaking = (args: UseStakingProps) => {
     isPending: isWithdrawPending,
     error: withdrawError,
     reset: resetWithdrawContract,
-  } = useWriteContract({
-    mutation: {
-      onError: (error) => {
-        console.error("Detailed withdrawal error:", error);
-        let errorMessage = "Unknown error";
-
-        if (error instanceof Error) {
-          errorMessage = error.message;
-
-          // Try to extract the revert reason if available
-          const revertMatch = errorMessage.match(
-            /reverted with reason string '([^']*)'/
-          );
-          if (revertMatch && revertMatch[1]) {
-            errorMessage = `Contract reverted: ${revertMatch[1]}`;
-          }
-
-          // Extract gas errors
-          if (errorMessage.includes("gas")) {
-            errorMessage =
-              "Transaction would exceed gas limits. The contract function may be failing.";
-          }
-        }
-
-        toaster.create({
-          title: "Withdrawal Failed",
-          description: errorMessage,
-          type: "error",
-        });
-      },
-    },
-  });
+  } = useWriteContract();
 
   // =============== WAIT FOR TRANSACTION HOOKS
   // Wait for staking transaction to be mined
@@ -745,6 +694,8 @@ export const useStaking = (args: UseStakingProps) => {
 
   // Handle Approval Transaction Notifications
   useEffect(() => {
+    console.log("isapprovepending", isApprovePending);
+    console.log("isapproveerror", approveError);
     if (isApprovePending) {
       showEnhancedLoadingToast(
         "Confirm approval in wallet...",
@@ -764,7 +715,6 @@ export const useStaking = (args: UseStakingProps) => {
       // Add a delay to ensure blockchain state is updated
       const refreshAllowanceWithDelay = () => {
         setTimeout(() => {
-          console.log("Refreshing allowance after successful approval...");
           refetchAllowance()
             .then(() => {
               console.log("Successfully refreshed allowance after approval");
@@ -789,6 +739,8 @@ export const useStaking = (args: UseStakingProps) => {
       );
       if (detailsMatch && detailsMatch[1])
         displayError = detailsMatch[1].trim();
+
+      console.log("displayError", displayError);
       showToast({
         title: "Approval Failed",
         description: displayError,
@@ -868,6 +820,73 @@ export const useStaking = (args: UseStakingProps) => {
     onTxSuccess,
     refetchBalance,
     refetchAllowance,
+    networkChainId,
+    isTestnet,
+  ]);
+
+  // Handle Withdrawal Transaction Notifications
+  useEffect(() => {
+    if (isWithdrawPending) {
+      showEnhancedLoadingToast(
+        "Confirm withdrawal in wallet...",
+        "withdraw-tx"
+      );
+    }
+    if (isWithdrawTxSuccess) {
+      showToast({
+        type: "success",
+        method: "update",
+        id: "withdraw-tx",
+        title: "Withdrawal Successful",
+        description: `Tx: ${withdrawTxResult?.substring(0, 10)}...`,
+        action: {
+          label: "View on Explorer",
+          onClick: () => {
+            const chain = getChainById(
+              networkChainId,
+              isTestnet ? "testnet" : "mainnet"
+            );
+            const explorerUrl = chain?.blockExplorers?.default.url;
+            if (explorerUrl && withdrawTxResult) {
+              window.open(`${explorerUrl}/tx/${withdrawTxResult}`, "_blank");
+            }
+          },
+        },
+      });
+
+      resetWithdrawContract();
+      // Refresh balance after withdrawal
+      refetchBalance();
+      if (onTxSuccess) {
+        onTxSuccess();
+      }
+    }
+    if (withdrawError) {
+      const errorMsg = withdrawError?.message || "Withdrawal failed.";
+      let displayError = errorMsg.split("(")[0].trim();
+      const detailsMatch = errorMsg.match(
+        /(?:Details|Reason): (.*?)(?:\\n|\.|$)/i
+      );
+      if (detailsMatch && detailsMatch[1])
+        displayError = detailsMatch[1].trim();
+
+      showToast({
+        title: "Withdrawal Failed",
+        description: displayError,
+        type: "error",
+        method: "update",
+        id: "withdraw-tx",
+      });
+      resetWithdrawContract();
+    }
+  }, [
+    isWithdrawPending,
+    isWithdrawTxSuccess,
+    withdrawTxResult,
+    withdrawError,
+    resetWithdrawContract,
+    onTxSuccess,
+    refetchBalance,
     networkChainId,
     isTestnet,
   ]);

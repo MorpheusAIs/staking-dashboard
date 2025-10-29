@@ -66,8 +66,6 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
     onHandleNetworkSwitch,
     checkAndUpdateApprovalNeeded,
   } = props;
-  // =============== STATE
-  const [isWrongNetwork, setIsWrongNetwork] = useState(false);
 
   // =============== HOOKS
   const {
@@ -83,49 +81,19 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
     },
   });
   const { isConnected, chainId, chain } = useAccount();
-  const { switchChain } = useSwitchChain();
 
   // =============== VARIABLES
   const stakeAmount = watch("stakeAmount");
   const validStakeAmount = stakeAmount && parseFloat(stakeAmount) > 0;
-  const approvalState =
-    isApproving ||
-    (needsApproval && stakeAmount && parseFloat(stakeAmount) > 0);
-
-  // Show warning based on logic or explicit flag
-  const displayWarning =
-    !isCorrectNetwork() ||
-    needsApproval ||
-    (!!stakeAmount && parseFloat(stakeAmount) > 0) ||
-    (!!stakeAmount &&
-      parseFloat(stakeAmount) >
-        (tokenBalance
-          ? parseFloat(formatEther(tokenBalance as unknown as bigint))
-          : 0));
-  tokenBalance !== undefined && parseFloat(stakeAmount) > tokenBalance;
+  const approvalState = isApproving || (needsApproval && validStakeAmount);
+  const loadingState = isSubmitting;
 
   // =============== EFFECTS
   // Check if approval is needed when stake amount changes
   useEffect(() => {
-    if (!validStakeAmount) return;
-    checkAndUpdateApprovalNeeded(stakeAmount);
-  }, [stakeAmount, checkAndUpdateApprovalNeeded]);
-
-  // Refresh approval state when user returns to the page or when allowance data loads
-  // This fixes the issue where interface keeps asking for approval after page reload
-  useEffect(() => {
     if (!validStakeAmount || isLoadingData) return;
     checkAndUpdateApprovalNeeded(stakeAmount);
-  }, [stakeAmount, checkAndUpdateApprovalNeeded, isLoadingData]);
-
-  // Check if user is on correct network
-  useEffect(() => {
-    if (isConnected && chainId !== arbitrum.id) {
-      setIsWrongNetwork(true);
-    } else {
-      setIsWrongNetwork(false);
-    }
-  }, [isConnected, chainId]);
+  }, [stakeAmount, isLoadingData, checkAndUpdateApprovalNeeded]);
 
   // =============== EVENTS
   const onMaxClick = () => {
@@ -181,6 +149,15 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
       return;
     }
 
+    if (!validStakeAmount) {
+      toaster.create({
+        title: "Invalid stake amount",
+        description: "Please enter a valid stake amount greater than 0.",
+        type: "error",
+      });
+      return;
+    }
+
     // If not on the correct network, switch first
     if (!isCorrectNetwork()) {
       await onHandleNetworkSwitch();
@@ -191,42 +168,23 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
     const currentlyNeedsApproval = stakeAmount
       ? await checkAndUpdateApprovalNeeded(stakeAmount)
       : false;
-    console.log(
-      `Fresh approval check: ${
-        currentlyNeedsApproval ? "Needs approval" : "No approval needed"
-      }`
-    );
 
     // Already on correct network, handle approval or staking
-    if (
-      (currentlyNeedsApproval || needsApproval) &&
-      stakeAmount &&
-      parseFloat(stakeAmount) > 0
-    ) {
-      console.log(`Calling onHandleApprove with amount: ${stakeAmount}`);
+    if (currentlyNeedsApproval || needsApproval) {
       await onHandleApprove(stakeAmount);
     } else if (stakeAmount && parseFloat(stakeAmount) > 0) {
-      console.log(`Calling onHandleStaking with amount: ${stakeAmount}`);
       await onHandleStaking(stakeAmount);
-    } else {
-      console.warn("Neither approval nor staking conditions met:", {
-        needsApproval,
-        currentlyNeedsApproval,
-        stakeAmount,
-        parsed: parseFloat(stakeAmount || "0"),
-      });
     }
   };
 
   // =============== MEMO
-  const networksToDisplay = useMemo(() => {
+  const networksToDisplay = (): string[] => {
     if (!chain) {
       // fallback logic if wallet not connected
       if (isTestnet) {
-        console.log("[BuilderPage] Fallback to testnet network");
         return ["Arbitrum Sepolia"];
       }
-      console.log("[BuilderPage] Fallback to Base network");
+
       return ["Base"];
     }
 
@@ -241,26 +199,28 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
       default:
         return [chain.name]; // fallback to whatever network user connected to
     }
-  }, [chain, isTestnet]);
+  };
 
   // =============== HELPERS
   // Check if entered amount is above minimum and below maximum
   const isAmountValid = () => {
     const amount = parseFloat(stakeAmount);
+    // if amount is NaN or less than or equal to 0, invalid
     if (isNaN(amount) || amount <= 0) return false;
 
-    // Skip minimum validation if minAmount is undefined
+    // if amount is below min deposit, invalid
     if (
       SUBNET_CONFIG.minDeposit !== undefined &&
       amount < SUBNET_CONFIG.minDeposit
     )
       return false;
+
+    // if amount is above the available balance that user has, invalid
     if (tokenBalance !== undefined && amount > tokenBalance) return false;
 
     return true;
   };
 
-  // New: Check if the amount is just positive for approval
   const hasPositiveAmount = () => {
     const amount = parseFloat(stakeAmount);
     return !isNaN(amount) && amount > 0;
@@ -269,20 +229,8 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
   // =============== RENDER
   const renderButtonText = () => {
     if (!isCorrectNetwork()) return "Switch to Arbitrum";
-    if (isStaking) return "Staking...";
-    if (isApproving) return "Approving...";
-    if (needsApproval && stakeAmount && parseFloat(stakeAmount) > 0)
-      return `Approve ${tokenSymbol}`;
+    if (needsApproval && validStakeAmount) return `Approve ${tokenSymbol}`;
     return `Stake ${tokenSymbol}`;
-  };
-
-  const renderWarningText = () => {
-    if (!isCorrectNetwork())
-      return `Please switch to ${networksToDisplay[0]} network to stake`;
-    if (needsApproval && stakeAmount && parseFloat(stakeAmount) > 0) {
-      return `You need to approve ${tokenSymbol} spending first`;
-    }
-    return `Warning: You don't have enough ${tokenSymbol}`;
   };
 
   // =============== VIEWS
@@ -351,9 +299,6 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
               </VStack>
             )}
           />
-          {displayWarning && (
-            <Text color="colorPalette.warning">{renderWarningText()}</Text>
-          )}
           <Button
             type="submit"
             bgColor="primary"
@@ -361,9 +306,9 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
             fontWeight={"bold"}
             width={"full"}
             borderRadius={"sm"}
+            loading={loadingState}
             disabled={
               isSubmitting ||
-              // For approval buttons, only require a positive amount
               (approvalState ? !hasPositiveAmount() : !isAmountValid())
             }
           >

@@ -173,12 +173,21 @@ export const formatStakerData = (
   claimLockEnd: string;
   lastStake: string;
   timeLeft: string;
-} | null => {
-  if (!stakerData) return null;
-
+  formattedStaked?: number;
+} => {
   let staked: bigint;
   let lastStake: bigint;
   let claimLockEndRaw: bigint;
+
+  if (!stakerData)
+    return {
+      stakedRaw: BigInt(0),
+      stakedFormattedForUI: "0.00",
+      claimLockEnd: "-",
+      lastStake: "-",
+      timeLeft: "-",
+      formattedStaked: 0,
+    };
 
   if (isTestnet) {
     // Testnet data structure: [staked, virtualStaked, pendingRewards, rate, lastStake, claimLockEnd]
@@ -245,19 +254,9 @@ export const formatStakerData = (
     calculatedTimeLeft = "Unlocked";
   }
 
-  console.log("Staker data processed:", {
-    isTestnet,
-    stakedRaw: staked.toString(),
-    stakedFormattedForUI: formattedStaked.toFixed(2),
-    claimLockEnd: new Date(Number(effectiveClaimLockEnd) * 1000).toLocaleString(
-      "en-US"
-    ),
-    lastStake: new Date(Number(lastStake) * 1000).toLocaleString("en-US"),
-    timeLeft: calculatedTimeLeft,
-  });
-
   return {
     stakedRaw: staked,
+    formattedStaked,
     stakedFormattedForUI: formattedStaked.toFixed(2),
     claimLockEnd: new Date(Number(effectiveClaimLockEnd) * 1000).toLocaleString(
       "en-US"

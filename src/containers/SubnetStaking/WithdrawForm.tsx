@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import { SUBNET_CONFIG } from "staking-dashboard/lib/configs/subnet.config";
 import { formatUnits, parseUnits } from "viem";
+import { formatStakerData } from "staking-dashboard/lib/helpers";
 
 export type WithdrawFormProps = {
   stakerData: unknown;
@@ -22,7 +23,10 @@ export type WithdrawFormProps = {
   isWithdrawing?: boolean;
   isCorrectNetwork: () => boolean;
   onToggleAlert: (message: string) => void;
-  onHandleWithdraw: (amount: string) => Promise<void>;
+  onHandleWithdraw: (
+    amount: string,
+    onWithdrawSuccess: () => void
+  ) => Promise<void>;
   onHandleNetworkSwitch: () => Promise<true | undefined>;
 };
 
@@ -76,9 +80,6 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
   const [userStakedAmount, setUserStakedAmount] = useState<number>(0);
   const [rawStakedAmount, setRawStakedAmount] = useState<bigint | null>(null);
   const [timeLeft, setTimeLeft] = useState<string>("");
-
-  // =============== REF
-  const previousStakedAmountRef = useRef<number | null>(null); // Add ref to track previous staked amount
 
   // =============== VARIABLES
   const withdrawAmount = watch("withdrawAmount");
@@ -149,7 +150,9 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
       );
     }
     // Pass the original string (e.g., "4") to handleWithdraw, as the hook expects token units.
-    await onHandleWithdraw(amountUserWantsToWithdrawStr);
+    await onHandleWithdraw(amountUserWantsToWithdrawStr, () => {
+      setValue("withdrawAmount", "");
+    });
   };
 
   const onHandleChange = ({
@@ -191,110 +194,38 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
     });
 
     if (stakerData) {
-      let staked: bigint;
-      let lastStake: bigint;
-      let claimLockEndRaw: bigint;
+      const { stakedRaw, formattedStaked, timeLeft } = formatStakerData(
+        stakerData,
+        isTestnet
+      );
 
-      if (isTestnet) {
-        // Testnet data structure: [staked, virtualStaked, pendingRewards, rate, lastStake, claimLockEnd]
-        const [stakedData, , , , lastStakeData, claimLockEndData] =
-          stakerData as [bigint, bigint, bigint, bigint, bigint, bigint];
-        staked = stakedData;
-        lastStake = lastStakeData;
-        claimLockEndRaw = claimLockEndData;
-      } else {
-        // Mainnet structure from usersData:
-        // [lastDeposit, claimLockStart, deposited, virtualDeposited]
-        // [uint128, uint128, uint256, uint256]
-        // Only extract the values we need (index 0 and 2)
-        const stakerArray = stakerData as [bigint, bigint, bigint, bigint];
-        const lastStakeData = stakerArray[0];
-        const depositedData = stakerArray[2];
-        staked = depositedData;
-        lastStake = lastStakeData;
-        // For mainnet, calculate claimLockEnd
-        claimLockEndRaw = BigInt(0); // Default to 0
-        if (lastStake !== BigInt(0)) {
-          const lpSeconds = SUBNET_CONFIG.lockPeriodInSeconds;
-          claimLockEndRaw = BigInt(Number(lastStake) + lpSeconds);
-        }
-      }
+      setRawStakedAmount(stakedRaw);
+      setUserStakedAmount(formattedStaked || 0);
 
-      // Determine effective claimLockEnd. If contract returned 0 (or an old value),
-      // fallback to lastStake + appropriate lock period based on network
-      let effectiveClaimLockEnd = claimLockEndRaw;
-      if (
-        claimLockEndRaw === BigInt(0) ||
-        Number(claimLockEndRaw) < Number(lastStake)
-      ) {
-        const lpSeconds = SUBNET_CONFIG.lockPeriodInSeconds;
-        effectiveClaimLockEnd = BigInt(Number(lastStake) + lpSeconds);
-      }
+      setTimeLeft(timeLeft || "");
 
-      setRawStakedAmount(staked); // Store the raw bigint value
-
-      // Format the staked amount for UI display
-      const formattedStaked = parseFloat(formatUnits(staked, 18));
-      const previousUserStakedAmount = previousStakedAmountRef.current;
-      setUserStakedAmount(formattedStaked); // Keep decimal precision
-      previousStakedAmountRef.current = formattedStaked; // Update ref with new value
-
-      console.log("Updated user staked amount:", {
-        previousAmount: previousUserStakedAmount,
-        newAmount: formattedStaked,
-        rawStaked: staked.toString(),
-        formattedForDisplay: formattedStaked.toFixed(2),
-      });
-
-      // Calculate time until unlock
-      const now = Math.floor(Date.now() / 1000);
-      const claimLockEndNumber = Number(effectiveClaimLockEnd);
-      let calculatedTimeLeft: string;
-
-      if (claimLockEndNumber > now) {
-        const secondsRemaining = claimLockEndNumber - now;
-
-        if (secondsRemaining < 60) {
-          calculatedTimeLeft = `${secondsRemaining} seconds`;
-        } else if (secondsRemaining < 3600) {
-          calculatedTimeLeft = `${Math.floor(secondsRemaining / 60)} minutes`;
-        } else if (secondsRemaining < 86400) {
-          calculatedTimeLeft = `${Math.floor(secondsRemaining / 3600)} hours`;
-        } else {
-          calculatedTimeLeft = `${Math.floor(secondsRemaining / 86400)} days`;
-        }
-      } else {
-        calculatedTimeLeft = "Unlocked";
-      }
-
-      setTimeLeft(calculatedTimeLeft);
-
-      console.log("Staker data processed:", {
-        isTestnet,
-        stakedRaw: staked.toString(),
-        stakedFormattedForUI: formattedStaked.toFixed(2),
-        claimLockEnd: new Date(
-          Number(effectiveClaimLockEnd) * 1000
-        ).toLocaleString("en-US"),
-        lastStake: new Date(Number(lastStake) * 1000).toLocaleString("en-US"),
-        timeLeft: calculatedTimeLeft,
-      });
+      // console.log("Staker data processed:", {
+      //   isTestnet,
+      //   stakedRaw: stakedRaw.toString(),
+      //   stakedFormattedForUI: formattedStaked.toFixed(2),
+      //   claimLockEnd: new Date(
+      //     Number(effectiveClaimLockEnd) * 1000
+      //   ).toLocaleString("en-US"),
+      //   lastStake: new Date(Number(lastStake) * 1000).toLocaleString("en-US"),
+      //   timeLeft: calculatedTimeLeft,
+      // });
     } else {
-      // Reset values if no data
-      console.log("No staker data found, resetting values");
       setUserStakedAmount(0);
-      setRawStakedAmount(null); // Reset raw amount
+      setRawStakedAmount(null);
       setTimeLeft("Not staked");
     }
   }, [stakerData, isTestnet, userAddress]);
-
-  // =============== VARIABLES
 
   // =============== RENDER FUNCTIONS
   const renderButtonText = () => {
     if (isWithdrawing) return "Withdrawing...";
     if (!isCorrectNetwork()) return "Switch Network";
-    return `Widthdraw ${tokenSymbol}`;
+    return `Withdraw ${tokenSymbol}`;
   };
 
   // =============== VIEWS
@@ -333,6 +264,7 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
                       color="primary"
                       variant={"outline"}
                       onClick={onMaxClick}
+                      disabled={isWithdrawing}
                     >
                       Max
                     </Button>
@@ -366,7 +298,9 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
             color="white"
             width={"full"}
             borderRadius={"sm"}
+            loading={isWithdrawing}
             disabled={disableWithdraw}
+            fontWeight="medium"
           >
             {renderButtonText()}
           </Button>

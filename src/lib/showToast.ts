@@ -6,7 +6,7 @@ import { toaster } from "staking-dashboard/components/ui/toaster";
 export const showToast = (args: {
   method?: "create" | "update";
   id?: string;
-  title: string;
+  title?: string;
   description?: string;
   type: "success" | "error" | "info" | "loading" | "warning";
   action?: {
@@ -22,6 +22,7 @@ export const showToast = (args: {
           description: args.description,
           action: args.action,
           type: args.type,
+          id: args?.id,
         });
       });
     case "update":
@@ -41,6 +42,7 @@ export const showToast = (args: {
           title: args.title,
           description: args.description,
           action: args.action,
+          id: args?.id,
           type: args.type,
         });
       });
