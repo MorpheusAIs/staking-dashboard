@@ -58,21 +58,10 @@ export const SubnetStaking = () => {
     subnetId,
     networkChainId: chainId,
     onTxSuccess: () => {
-      console.log(
-        "Transaction successful (stake/withdraw/claim), refreshing staking table and current user staker data."
-      );
-
       // Refetch the current user's staker data with logging
       if (refetchStakerDataForUser) {
-        console.log(
-          "Calling refetchStakerDataForUser to refresh user's staked amount..."
-        );
         refetchStakerDataForUser()
-          .then(() => {
-            console.log(
-              "Successfully refetched user staker data after transaction"
-            );
-          })
+          .then(() => {})
           .catch((error: unknown) => {
             console.error("Error refetching user staker data:", error);
           });
@@ -105,7 +94,7 @@ export const SubnetStaking = () => {
       gap={{ base: 4, md: 6 }}
       width="full"
       h="full"
-      pb={5}
+      mb={2}
       justifyContent={"center"}
     >
       {alertMessage && (
@@ -192,7 +181,7 @@ export const SubnetStaking = () => {
             subnetId={subnetId}
             isTestnet={isTestnet}
             contractAddress={contractAddress}
-            stakerData={stakerData}
+            stakerData={stakerData as unknown[]}
             tokenSymbol={tokenSymbol}
           />
         </VStack>

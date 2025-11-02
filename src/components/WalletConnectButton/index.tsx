@@ -21,16 +21,6 @@ export const WalletConnectButton: React.FC<WalletConnectButtonProps> = (
   const { open } = useAppKit();
   const { isConnected } = useAccount();
 
-  console.log("isConnected", isConnected);
-
-  // =============== STATE
-
-  // =============== API
-
-  // =============== EVENTS
-
-  // =============== VARIABLES
-
   // =============== RENDER FUNCTIONS
   const renderButton = () => {
     if (!isConnected)

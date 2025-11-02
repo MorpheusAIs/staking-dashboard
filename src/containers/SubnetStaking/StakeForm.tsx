@@ -12,14 +12,12 @@ import {
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { useEffect, useMemo, useState } from "react";
-import { arbitrum } from "wagmi/chains";
-import { useAccount, useSwitchChain } from "wagmi";
+import { useEffect } from "react";
+import { useAccount } from "wagmi";
 import "staking-dashboard/app/global.css";
 import { toaster } from "staking-dashboard/components/ui/toaster";
 import { formatToOneDecimal } from "staking-dashboard/lib/helpers";
 import { SUBNET_CONFIG } from "staking-dashboard/lib/configs/subnet.config";
-import { formatEther } from "viem";
 import { buttonRecipe } from "staking-dashboard/lib/configs/theme";
 
 export type StakeFormProps = {
@@ -34,7 +32,10 @@ export type StakeFormProps = {
   isSubmitting?: boolean;
   isCorrectNetwork: () => boolean;
   onHandleApprove: (amount: string) => Promise<void>;
-  onHandleStaking: (amount: string) => Promise<void>;
+  onHandleStaking: (
+    amount: string,
+    onStakingSuccess: () => void
+  ) => Promise<void>;
   onHandleNetworkSwitch: () => Promise<true | undefined>;
   checkAndUpdateApprovalNeeded: (amount: string) => boolean;
 };
@@ -62,7 +63,6 @@ const schema = yup.object({
 export const StakeForm: React.FC<StakeFormProps> = (props) => {
   const {
     subnetId,
-    isStaking,
     isTestnet,
     tokenSymbol,
     isApproving,
@@ -142,15 +142,6 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
   };
 
   const onSubmit = async () => {
-    // @TODO remove
-    console.log("onStakeSubmit called with:", {
-      needsApproval,
-      stakeAmount,
-      isCorrectNetwork: isCorrectNetwork(),
-      tokenSymbol,
-      subnetId, // Log subnetId here to debug
-    });
-
     // Validate subnetId is present
     if (!subnetId) {
       toaster.create({
@@ -186,7 +177,9 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
     if (currentlyNeedsApproval || needsApproval) {
       await onHandleApprove(stakeAmount);
     } else if (stakeAmount && parseFloat(stakeAmount) > 0) {
-      await onHandleStaking(stakeAmount);
+      await onHandleStaking(stakeAmount, () => {
+        setValue("stakeAmount", "");
+      });
     }
   };
 

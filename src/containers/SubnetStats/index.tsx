@@ -21,7 +21,11 @@ import { useChainId } from "wagmi";
 import { BsStack } from "react-icons/bs";
 import { FaUsers } from "react-icons/fa";
 import { LuClock } from "react-icons/lu";
-import { secondsToDays, toMOR } from "staking-dashboard/lib/helpers";
+import {
+  formatDuration,
+  formatTimeDuration,
+  toMOR,
+} from "staking-dashboard/lib/helpers";
 
 export type SubnetStatsProps = {
   isTestnet: boolean;
@@ -44,7 +48,7 @@ export const SubnetStats: React.FC<SubnetStatsProps> = (props) => {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["builderProject", projectID],
+    queryKey: ["builderProject", projectID, chain],
     queryFn: () =>
       fetchQuery({
         query: isTestnet
@@ -56,9 +60,6 @@ export const SubnetStats: React.FC<SubnetStatsProps> = (props) => {
   });
 
   // =============== HELPERS
-  const dayOrDays = (seconds: number) =>
-    secondsToDays(seconds) === 1 ? "day" : "days";
-
   const userOrUsers = (count: number) => (count === 1 ? "user" : "users");
 
   // =============== VARIABLES
@@ -105,22 +106,14 @@ export const SubnetStats: React.FC<SubnetStatsProps> = (props) => {
       icon: LuClock,
       value: (
         <>
-          {secondsToDays(withdrawPeriod)}{" "}
+          {formatDuration(withdrawPeriod)}{" "}
           <Text as="span" fontSize={{ base: "xs", md: "sm" }}>
-            {dayOrDays(withdrawPeriod)}
+            {formatTimeDuration(withdrawPeriod)}
           </Text>
         </>
       ),
     },
   ];
-
-  // =============== STATE
-
-  // =============== API
-
-  // =============== EVENTS
-
-  // =============== RENDER FUNCTIONS
 
   // =============== VIEWS
   if (isLoading)
@@ -135,6 +128,7 @@ export const SubnetStats: React.FC<SubnetStatsProps> = (props) => {
         gap={{ base: 1, md: 6 }}
         width="full"
         bg="card"
+        backdropFilter="blur(20px)"
         p={1}
         borderRadius={"lg"}
         border="1px solid"

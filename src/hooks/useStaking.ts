@@ -193,13 +193,6 @@ export const useStaking = (args: UseStakingProps) => {
   // =============== EVENT HANDLERS
   // Handle token approval before staking
   const onHandleApprove = async (amount: string) => {
-    console.log("Approval request with parameters:", {
-      tokenAddress,
-      contractAddress,
-      networkChainId,
-      amount,
-    });
-
     if (!validatePreApproval(tokenAddress, contractAddress)) {
       return;
     }
@@ -265,20 +258,6 @@ export const useStaking = (args: UseStakingProps) => {
         ? "Arbitrum"
         : "Base";
 
-      console.log(
-        `${
-          networkType.charAt(0).toUpperCase() + networkType.slice(1)
-        } withdrawal transaction parameters (${networkName}):`,
-        {
-          subnetId,
-          amount: parsedAmount.toString(),
-          formattedAmount: formatEther(parsedAmount),
-          contractAddress,
-          chainId: networkChainId,
-          networkName,
-        }
-      );
-
       // Both testnet (V2) and mainnet contracts use the same withdraw interface
       // withdraw(bytes32 subnetId_, uint256 amount_)
       await writeWithdraw(
@@ -291,11 +270,10 @@ export const useStaking = (args: UseStakingProps) => {
         },
         {
           onSuccess: async (result) => {
-            console.log("result from writeWithdraw", result);
             const receipt = await waitForTransactionReceipt(config, {
               hash: result,
             });
-            console.log("receipt", receipt);
+
             if (receipt.status === "success") {
               onWithDrawSuccess?.();
             }
@@ -315,7 +293,10 @@ export const useStaking = (args: UseStakingProps) => {
   };
 
   // Handle staking
-  const onHandleStaking = async (amount: string) => {
+  const onHandleStaking = async (
+    amount: string,
+    onStakingSuccess: () => void
+  ) => {
     if (
       !validatePreStake({
         connectedAddress,
@@ -349,28 +330,29 @@ export const useStaking = (args: UseStakingProps) => {
         const networkName =
           networkChainId === CHAIN_ID.ARBITRUM ? "Arbitrum" : "Base";
 
-        console.log(
-          `Mainnet staking transaction parameters (${networkName}):`,
-          {
-            builderPoolId: subnetId, // Log this to debug
-            amount: parsedAmount.toString(),
-            formattedAmount: formatEther(parsedAmount),
-            contractAddress,
-            chainId: networkChainId,
-            networkName,
-          }
-        );
-
         // For mainnet, we need to use deposit(bytes32,uint256) from BuildersAbi
         // Mainnet uses a different contract interface: Builders.json
-        await writeStake({
-          // We are sure that contractAddress is defined due to validatePreStake check
-          address: contractAddress!,
-          abi: BuildersAbi, // Changed from BuilderSubnetsAbi to BuildersAbi
-          functionName: "deposit", // Changed from 'stake' to 'deposit'
-          args: [subnetId, parsedAmount], // Changed to include subnetId
-          chainId: networkChainId,
-        });
+        return await writeStake(
+          {
+            // We are sure that contractAddress is defined due to validatePreStake check
+            address: contractAddress!,
+            abi: BuildersAbi, // Changed from BuilderSubnetsAbi to BuildersAbi
+            functionName: "deposit", // Changed from 'stake' to 'deposit'
+            args: [subnetId, parsedAmount], // Changed to include subnetId
+            chainId: networkChainId,
+          },
+          {
+            onSuccess: async (result) => {
+              const receipt = await waitForTransactionReceipt(config, {
+                hash: result,
+              });
+
+              if (receipt.status === "success") {
+                onStakingSuccess();
+              }
+            },
+          }
+        );
       }
 
       // Different staking function for testnet
@@ -379,11 +361,6 @@ export const useStaking = (args: UseStakingProps) => {
 
       // Use the subnet-specific lock period if provided, otherwise default to 30 days
       const lockPeriod = lockPeriodInSeconds || 30 * 24 * 60 * 60; // Default to 30 days in seconds
-      console.log(
-        `Using lock period: ${lockPeriod} seconds (${formatTimePeriod(
-          lockPeriod
-        )})`
-      );
 
       const lockEndTimestamp = BigInt(now + lockPeriod);
 
@@ -394,21 +371,6 @@ export const useStaking = (args: UseStakingProps) => {
       // Verify the contract address is the one from the networks.ts config
       const expectedContractAddress = getChainById(networkChainId, "testnet")
         ?.contracts?.builders?.address;
-
-      console.log("Testnet staking transaction parameters:", {
-        subnetId,
-        stakerAddress: connectedAddress,
-        amount: parsedAmount.toString(),
-        formattedAmount: formatEther(parsedAmount),
-        lockPeriodInSeconds: lockPeriod,
-        claimLockEnd: claimLockEndUint128.toString(),
-        formattedLockEnd: new Date(
-          Number(claimLockEndUint128) * 1000
-        ).toISOString(),
-        contractAddress,
-        expectedContractAddress,
-        chainId: networkChainId,
-      });
 
       // Ensure we're using the correct contract address
       if (
@@ -431,21 +393,34 @@ export const useStaking = (args: UseStakingProps) => {
 
       // Optimize gas settings for Arbitrum Sepolia
       const gasConfig =
-        networkChainId === 421614
+        networkChainId === arbitrumSepolia.id
           ? {
               gas: BigInt(3000000), // Fixed gas limit to avoid over-estimation
               gasPrice: undefined, // Let Arbitrum estimate the gas price
             }
           : {};
 
-      await writeStake({
-        address: contractAddress!,
-        abi: BuilderSubnetsV2Abi,
-        functionName: "stake",
-        args: [subnetId, connectedAddress, parsedAmount, claimLockEndUint128],
-        chainId: networkChainId,
-        ...gasConfig,
-      });
+      await writeStake(
+        {
+          address: contractAddress!,
+          abi: BuilderSubnetsV2Abi,
+          functionName: "stake",
+          args: [subnetId, connectedAddress, parsedAmount, claimLockEndUint128],
+          chainId: networkChainId,
+          ...gasConfig,
+        },
+        {
+          onSuccess: async (result) => {
+            const receipt = await waitForTransactionReceipt(config, {
+              hash: result,
+            });
+
+            if (receipt.status === "success") {
+              onStakingSuccess();
+            }
+          },
+        }
+      );
     } catch (error) {
       toaster.create({
         description: `Failed to stake: ${
@@ -465,9 +440,6 @@ export const useStaking = (args: UseStakingProps) => {
       const targetNetwork = getNetworkName(networkChainId);
       const networkType = isTestnet ? "testnet" : "mainnet";
 
-      console.log(
-        `Switching to ${targetNetwork} (${networkType}, chainId: ${networkChainId})...`
-      );
       toaster.create({
         description: `Switching to ${targetNetwork}...`,
         type: "loading",
@@ -621,20 +593,7 @@ export const useStaking = (args: UseStakingProps) => {
     isPending: isStakePending,
     error: stakeError,
     reset: resetStakeContract,
-  } = useWriteContract({
-    mutation: {
-      onError: (error) => {
-        const errorMessage = formatStakingError(error, "stakeError");
-        showToast({
-          title: "Staking Failed",
-          description: errorMessage,
-          type: "error",
-          id: "stake-toast",
-          method: "update",
-        });
-      },
-    },
-  });
+  } = useWriteContract();
 
   // Approve tokens for staking
   const {
@@ -715,8 +674,6 @@ export const useStaking = (args: UseStakingProps) => {
 
   // Handle Approval Transaction Notifications
   useEffect(() => {
-    console.log("isapprovepending", isApprovePending);
-    console.log("isapproveerror", approveError);
     if (isApprovePending) {
       showEnhancedLoadingToast(
         "Confirm approval in wallet...",
@@ -737,9 +694,7 @@ export const useStaking = (args: UseStakingProps) => {
       const refreshAllowanceWithDelay = () => {
         setTimeout(() => {
           refetchAllowance()
-            .then(() => {
-              console.log("Successfully refreshed allowance after approval");
-            })
+            .then(() => {})
             .catch((error: unknown) => {
               console.error(
                 "Error refreshing allowance after approval:",
@@ -761,7 +716,6 @@ export const useStaking = (args: UseStakingProps) => {
       if (detailsMatch && detailsMatch[1])
         displayError = detailsMatch[1].trim();
 
-      console.log("displayError", displayError);
       showToast({
         title: "Approval Failed",
         description: displayError,

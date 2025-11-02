@@ -1,38 +1,13 @@
-import {
-  Box,
-  Grid,
-  GridItem,
-  HStack,
-  Table,
-  Text,
-  VStack,
-} from "@chakra-ui/react";
-import { useEffect } from "react";
-import { toaster } from "staking-dashboard/components/ui/toaster";
-import { wagmiAdapter } from "staking-dashboard/lib/configs/reownConfig";
-import { SUBNET_CONFIG } from "staking-dashboard/lib/configs/subnet.config";
-import Builders from "staking-dashboard/lib/abi/Builders.json";
+import { Box, Table, Text, VStack } from "@chakra-ui/react";
 import { formatStakerData } from "staking-dashboard/lib/helpers";
-import {
-  createPublicClient,
-  encodeEventTopics,
-  formatEther,
-  http,
-  parseAbiItem,
-} from "viem";
-import { arbitrum } from "viem/chains";
-import {
-  useAccount,
-  useChainId,
-  usePublicClient,
-  useReadContract,
-} from "wagmi";
+
+import { useAccount } from "wagmi";
 import WalletConnectButton from "staking-dashboard/components/WalletConnectButton";
 
 export type StakingPositionProps = {
   getAbi: () => unknown;
   subnetId: `0x${string}`;
-  stakerData: unknown;
+  stakerData: unknown[];
   isTestnet?: boolean;
   tokenSymbol: string;
   contractAddress?: `0x${string}`;
@@ -44,32 +19,16 @@ export type StakingPositionProps = {
  * ===========================
  */
 export const StakingPosition: React.FC<StakingPositionProps> = (props) => {
-  const { subnetId, isTestnet, stakerData, tokenSymbol, contractAddress } =
-    props;
+  const { isTestnet, stakerData, tokenSymbol } = props;
 
-  console.log("stakerData", stakerData);
-
-  const { stakedRaw, stakedFormattedForUI, claimLockEnd, lastStake, timeLeft } =
+  const { stakedFormattedForUI, claimLockEnd, lastStake } =
     formatStakerData(stakerData, isTestnet) || {};
-
-  console.log("StakingPosition props", {
-    stakerData,
-    isTestnet,
-    stakedRaw,
-    stakedFormattedForUI,
-    claimLockEnd,
-    lastStake,
-    timeLeft,
-  });
 
   // =============== HOOKS
   const { isConnected } = useAccount();
 
-  // =============== API
-
-  // =============== EFFECTS
-
   // =============== VARIABLES
+  const isEmptyPosition = stakerData?.every((v) => v === 0n || v === null);
   const userData = [
     {
       label: "Staked Amount",
@@ -79,21 +38,40 @@ export const StakingPosition: React.FC<StakingPositionProps> = (props) => {
     { label: "Claim Lock End", value: claimLockEnd || "N/A" },
   ];
 
-  // =============== RENDER FUNCTIONS
-
   // =============== VIEWS
   if (!isConnected) {
     return (
-      <HStack
+      <VStack
         width={"full"}
         py={4}
         justifyContent="center"
         alignItems={"center"}
+        gap={8}
       >
+        <Text color="textSecondary">
+          Connect your wallet to vew your staking position
+        </Text>
         <WalletConnectButton enableAddress={false} />
-      </HStack>
+      </VStack>
     );
   }
+
+  if (isEmptyPosition || stakedFormattedForUI === "0.00") {
+    return (
+      <VStack
+        width={"full"}
+        py={4}
+        justifyContent="center"
+        alignItems={"center"}
+        gap={2}
+      >
+        <Text color="textSecondary">
+          You do not have an active staking position.
+        </Text>
+      </VStack>
+    );
+  }
+
   return (
     <Box
       w="full"

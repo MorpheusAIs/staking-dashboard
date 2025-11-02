@@ -17,7 +17,6 @@ export type TokenBalanceProps = {};
 export const TokenBalance: React.FC<TokenBalanceProps> = () => {
   // =============== HOOKS
   const { address } = useAccount();
-  console.log("address", address);
   const chainId = useChainId();
   const {
     arbitrumBalance,
@@ -25,8 +24,6 @@ export const TokenBalance: React.FC<TokenBalanceProps> = () => {
     refreshBalances,
     arbitrumSepoliaBalance,
   } = useMORBalances(address);
-
-  console.log("arbitrumBalance, baseBalance", arbitrumBalance, baseBalance);
 
   // =============== EFFECTS
   useEffect(() => {
@@ -39,8 +36,6 @@ export const TokenBalance: React.FC<TokenBalanceProps> = () => {
   // =============== VARIABLES
   const isTestnet =
     chainId === CHAIN_ID.ARBITRUM_SEPOLIA || chainId === CHAIN_ID.SEPOLIA; // Arbitrum Sepolia or Sepolia
-
-  console.log("arbitrumSepoliaBalance", arbitrumSepoliaBalance);
 
   // =============== VIEWS
   if (isTestnet) {

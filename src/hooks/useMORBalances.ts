@@ -30,8 +30,6 @@ export const useMORBalances = (address: `0x${string}` | undefined) => {
     account: address,
   });
 
-  console.log("address useMORBalances", address);
-  console.log("mortoken", morTokenContracts[CHAIN_ID.ARBITRUM_SEPOLIA]);
   const { data: arbitrumSepoliaBalance, refetch: refetchSepolia } =
     useReadContract({
       address: morTokenContracts[CHAIN_ID.ARBITRUM_SEPOLIA] as `0x${string}`,
@@ -44,8 +42,6 @@ export const useMORBalances = (address: `0x${string}` | undefined) => {
         enabled: !!address && !!morTokenContracts[CHAIN_ID.ARBITRUM_SEPOLIA],
       },
     });
-
-  console.log("arbitrumSepoliaBalance useMORBalances", arbitrumSepoliaBalance);
 
   // Function to refresh all balances
   const refreshBalances = useCallback(async () => {

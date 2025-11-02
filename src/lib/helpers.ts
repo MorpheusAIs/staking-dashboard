@@ -64,10 +64,7 @@ export const validateAndExtractChainConfig = (
   args: ExtractChainConfigArgs
 ): ExtractChainConfigReturn | null => {
   const { networkChainId, isTestnet, onError, onWarning } = args;
-  console.log("networkChainId, isTestnet", networkChainId, isTestnet);
   const chain = getChainById(networkChainId, isTestnet ? "testnet" : "mainnet");
-
-  console.log("chain config", chain);
 
   if (!chain) {
     return null;
@@ -75,7 +72,6 @@ export const validateAndExtractChainConfig = (
 
   // === Builders Contract
   const buildersAddr = chain.contracts?.builders?.address;
-  console.log("buildersAddr", buildersAddr);
   if (!buildersAddr || !isAddress(buildersAddr)) {
     return null;
   }
@@ -269,9 +265,36 @@ export const formatStakerData = (
 // Helper to convert smallest unit (wei-like) to MOR
 export const toMOR = (value: number) => {
   const morValue = Number(value) / 1e18;
-  return Math.floor(morValue).toLocaleString();
+  return isNaN(morValue) ? "0" : Math.floor(morValue).toLocaleString();
 };
-// Helper to convert seconds to days
-export const secondsToDays = (seconds: number) => {
-  return Math.ceil(Number(seconds) / (24 * 3600));
+
+export const formatDuration = (seconds: number) => {
+  if (isNaN(seconds)) return "-";
+  if (seconds < 60) return Math.floor(seconds);
+  if (seconds < 3600) return Math.floor(seconds / 60);
+  if (seconds < 86400) return Math.floor(seconds / 3600);
+  return Math.floor(seconds / 86400);
+};
+
+// Converts seconds into the most suitable time unit
+export const formatTimeDuration = (seconds: number): string => {
+  if (isNaN(seconds) || seconds < 0) return "";
+
+  if (seconds < 60) {
+    const value = Math.floor(seconds);
+    return value === 1 ? "second" : "seconds";
+  }
+
+  if (seconds < 3600) {
+    const value = Math.floor(seconds / 60);
+    return value === 1 ? "minute" : "minutes";
+  }
+
+  if (seconds < 86400) {
+    const value = Math.floor(seconds / 3600);
+    return value === 1 ? "hour" : "hours";
+  }
+
+  const value = Math.floor(seconds / 86400);
+  return value === 1 ? "day" : "days";
 };

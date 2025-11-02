@@ -22,7 +22,7 @@ export const Layouts: React.FC<LayoutsProps> = (props) => {
   return (
     <VStack
       position="relative"
-      height={{ md: "100vh" }}
+      height={{ md: "100%" }}
       justifyContent="space-between"
       // This can be removed if you don't want the background image
       _before={{

@@ -18,8 +18,6 @@ export async function fetchQuery({
   variables?: Record<string, any>;
   chain: number;
 }) {
-  console.log("chain", chain);
-  console.log("GRAPHQL_ENDPOINTS[chain]------->", GRAPHQL_ENDPOINTS[chain]);
   const response = await fetch(GRAPHQL_ENDPOINTS[chain], {
     method: "POST",
     headers: {

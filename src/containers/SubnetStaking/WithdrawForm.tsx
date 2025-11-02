@@ -192,12 +192,6 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
 
   // =============== EFFECTS
   useEffect(() => {
-    console.log("Processing staker data:", {
-      stakerData,
-      isTestnet,
-      userAddress,
-    });
-
     if (stakerData) {
       const { stakedRaw, formattedStaked, timeLeft } = formatStakerData(
         stakerData,
@@ -208,17 +202,6 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
       setUserStakedAmount(formattedStaked || 0);
 
       setTimeLeft(timeLeft || "");
-
-      // console.log("Staker data processed:", {
-      //   isTestnet,
-      //   stakedRaw: stakedRaw.toString(),
-      //   stakedFormattedForUI: formattedStaked.toFixed(2),
-      //   claimLockEnd: new Date(
-      //     Number(effectiveClaimLockEnd) * 1000
-      //   ).toLocaleString("en-US"),
-      //   lastStake: new Date(Number(lastStake) * 1000).toLocaleString("en-US"),
-      //   timeLeft: calculatedTimeLeft,
-      // });
     } else {
       setUserStakedAmount(0);
       setRawStakedAmount(null);
