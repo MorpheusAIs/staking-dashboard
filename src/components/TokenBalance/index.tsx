@@ -60,7 +60,7 @@ export const TokenBalance: React.FC<TokenBalanceProps> = () => {
   }
 
   return (
-    <HStack gap={5}>
+    <HStack gap={5} display={{ base: "none", md: "flex" }}>
       <HStack>
         <ArbitrumIcon size={24} />
         <Text>{formatBalance(arbitrumBalance as bigint)} MOR</Text>

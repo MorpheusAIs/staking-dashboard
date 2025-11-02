@@ -9,3 +9,17 @@ input[type="number"]::-webkit-outer-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
 }
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: linear-gradient(
+    to bottom,
+    #08080a 60%,
+    rgba(23, 156, 101, 0.16) 100%
+  );
+}

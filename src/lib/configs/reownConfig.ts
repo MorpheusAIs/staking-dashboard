@@ -19,13 +19,7 @@ const metadata = {
   icons: ["https://morpheus.reown.com/favicon.ico"],
 };
 
-const networks: CreateAppKit["networks"] = [
-  mainnet,
-  arbitrum,
-  base,
-  arbitrumSepolia,
-  sepolia,
-];
+const networks: CreateAppKit["networks"] = [arbitrum, base, arbitrumSepolia];
 
 const wagmiAdapter = new WagmiAdapter({
   storage: createStorage({ storage: cookieStorage }),

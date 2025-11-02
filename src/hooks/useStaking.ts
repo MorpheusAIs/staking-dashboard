@@ -570,6 +570,27 @@ export const useStaking = (args: UseStakingProps) => {
     })
   );
 
+  const {
+    data: stakerPositionData,
+    refetch: refetchStakerPositionData,
+    isFetching: isFetchingStakerPositionData,
+  } = useReadContract(
+    constructReadContractArgs({
+      address: contractAddress,
+      abi: getAbi(),
+      functionName: "stakers",
+      args: isTestnet
+        ? [subnetId!, connectedAddress!] // testnet: getStakerRewards(subnetId, stakerAddress)
+        : [connectedAddress!], // mainnet: stakers(connectedAddress)
+      enabled:
+        isCorrectNetwork() &&
+        !!contractAddress &&
+        !!subnetId &&
+        !!connectedAddress,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    })
+  );
+
   // Get claimable amount - different functions for mainnet vs testnet
   const {
     data: claimableAmountData,
@@ -911,6 +932,7 @@ export const useStaking = (args: UseStakingProps) => {
 
   // =============== RETURN
   return {
+    getAbi,
     isStaking,
     stakerData,
     tokenSymbol,
@@ -921,9 +943,11 @@ export const useStaking = (args: UseStakingProps) => {
     isLoadingData,
     needsApproval,
     onHandleApprove,
+    contractAddress,
     onHandleStaking,
     onHandleWithdraw,
     isCorrectNetwork,
+    stakerPositionData,
     onHandleNetworkSwitch,
     refetchStakerDataForUser,
     checkAndUpdateApprovalNeeded,

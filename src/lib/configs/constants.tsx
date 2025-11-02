@@ -82,6 +82,8 @@ export const addresses = {
   BASE_MOR: "0x7431ada8a591c955a994a21710752ef9b882b8e3",
 };
 
+export const SIDEBAR_WIDTH = 250;
+
 export const stakingErrorMap: {
   stakeError: { title: string; description: string };
   approveError: { title: string; description: string };

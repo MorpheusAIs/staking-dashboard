@@ -1,5 +1,14 @@
 "use client";
-import { Button, Input, InputGroup, Text, VStack } from "@chakra-ui/react";
+import {
+  Button,
+  HStack,
+  Input,
+  InputGroup,
+  Stack,
+  Text,
+  useRecipe,
+  VStack,
+} from "@chakra-ui/react";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -11,6 +20,7 @@ import { toaster } from "staking-dashboard/components/ui/toaster";
 import { formatToOneDecimal } from "staking-dashboard/lib/helpers";
 import { SUBNET_CONFIG } from "staking-dashboard/lib/configs/subnet.config";
 import { formatEther } from "viem";
+import { buttonRecipe } from "staking-dashboard/lib/configs/theme";
 
 export type StakeFormProps = {
   subnetId: string;
@@ -68,6 +78,7 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
   } = props;
 
   // =============== HOOKS
+
   const {
     watch,
     control,
@@ -80,10 +91,12 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
       stakeAmount: "",
     },
   });
-  const { isConnected, chainId, chain } = useAccount();
+  const { chain } = useAccount();
+  const recipe = useRecipe({ recipe: buttonRecipe });
 
   // =============== VARIABLES
   const stakeAmount = watch("stakeAmount");
+  const styles = recipe({ visual: "solid" });
   const validStakeAmount = stakeAmount && parseFloat(stakeAmount) > 0;
   const approvalState = isApproving || (needsApproval && validStakeAmount);
   const loadingState = isSubmitting;
@@ -237,26 +250,47 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
   return (
     <VStack
       p={4}
+      pb={6}
       bg="card"
       borderRadius="md"
       width="full"
       border="1px solid"
       borderColor="border"
-      gap={4}
+      gap={{ base: 2, md: 3 }}
     >
       <VStack alignItems={"flex-start"} width="full">
-        <Text fontSize={"xl"} fontWeight={"medium"}>
+        <Text fontSize={"lg"} fontWeight={"bold"} color="gray.200">
           Stake MOR
         </Text>
       </VStack>
       <form onSubmit={handleSubmit(onSubmit)} style={{ width: "100%" }}>
-        <VStack width="full" gap={3}>
+        <VStack width="full" gap={4} px={{ md: 2 }}>
           <Controller
             name="stakeAmount"
             control={control}
             render={({ field }) => (
               <VStack width="full" alignItems={"flex-start"}>
-                <Text fontSize={"xs"}>Amount to stake</Text>
+                <Stack
+                  w="full"
+                  justifyContent="space-between"
+                  alignItems={{ base: "flex-start", md: "flex-end" }}
+                  direction={{ base: "column", md: "row" }}
+                >
+                  <Text fontSize={"sm"} fontWeight={"medium"}>
+                    Amount to stake
+                  </Text>
+                  <Text fontSize={"xs"} color="gray.400">
+                    Minimum deposit:
+                    <span
+                      style={{
+                        marginLeft: 4,
+                        color: "white",
+                      }}
+                    >
+                      {SUBNET_CONFIG.minDeposit} {tokenSymbol}
+                    </span>
+                  </Text>
+                </Stack>
                 <InputGroup
                   endElement={
                     <Button
@@ -285,6 +319,7 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
                       });
                     }}
                     width="full"
+                    css={{ "--focus-color": "{colors.primary}" }}
                     placeholder="Enter amount"
                     type="number"
                     min={0}
@@ -301,11 +336,9 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
           />
           <Button
             type="submit"
-            bgColor="primary"
-            color="white"
-            fontWeight={"bold"}
             width={"full"}
             borderRadius={"sm"}
+            css={styles}
             loading={loadingState}
             disabled={
               isSubmitting ||

@@ -1,5 +1,5 @@
 "use client";
-import { VStack, HStack, Text, Alert, Button } from "@chakra-ui/react";
+import { VStack, HStack, Text, Alert, Button, Stack } from "@chakra-ui/react";
 import StakeForm from "./StakeForm";
 import WithdrawForm from "./WithdrawForm";
 import StakingPosition from "./StakingPosition";
@@ -9,6 +9,8 @@ import { useChainId } from "wagmi";
 import { useEffect, useRef, useState } from "react";
 import { arbitrumSepolia } from "viem/chains";
 import { formatEther } from "viem";
+import { NetworkDropdown } from "staking-dashboard/components/NetworkSwitchDropdown";
+import SubnetStats from "../SubnetStats";
 
 /**
  * ===========================
@@ -27,7 +29,6 @@ export const SubnetStaking = () => {
   const isTestnet = chainId === arbitrumSepolia.id;
 
   // =============== REFS
-  const refreshStakingDataRef = useRef(false); // Add a ref to track if refresh has been called
   // Ref to store the approval refresh function
   const refreshApprovalRef = useRef<
     ((amount: string) => Promise<boolean> | boolean) | null
@@ -35,6 +36,7 @@ export const SubnetStaking = () => {
 
   // =============== HOOKS
   const {
+    getAbi,
     isStaking,
     stakerData,
     isApproving,
@@ -46,6 +48,7 @@ export const SubnetStaking = () => {
     needsApproval,
     onHandleStaking,
     onHandleApprove,
+    contractAddress,
     isCorrectNetwork,
     onHandleWithdraw,
     onHandleNetworkSwitch,
@@ -98,7 +101,13 @@ export const SubnetStaking = () => {
 
   // =============== VIEWS
   return (
-    <VStack gap={5}>
+    <VStack
+      gap={{ base: 4, md: 6 }}
+      width="full"
+      h="full"
+      pb={5}
+      justifyContent={"center"}
+    >
       {alertMessage && (
         <Alert.Root status="error" alignItems={"center"} rounded="md">
           <Alert.Indicator />
@@ -115,58 +124,75 @@ export const SubnetStaking = () => {
           </Button>
         </Alert.Root>
       )}
+      <SubnetStats tokenSymbol={tokenSymbol} isTestnet={isTestnet} />
       <VStack
         bg="card"
         borderRadius="xl"
-        p={6}
+        p={{ base: 5, md: 6 }}
         gap={7}
         width="full"
         justifyContent="center"
-        backdropFilter="blur(10px)"
+        backdropFilter="blur(20px)"
         border="1px solid"
         borderColor="border"
         alignItems="center"
       >
-        <HStack justifyContent={"flex-start"}>
-          <Text fontWeight="medium" fontSize={"xl"}>
-            MOR Subnet Staking
-          </Text>
-        </HStack>
-        <HStack width={"full"} gap={5}>
-          <StakeForm
-            subnetId={subnetId}
-            isTestnet={isTestnet}
-            isStaking={isStaking}
-            tokenSymbol={tokenSymbol}
-            isApproving={isApproving}
-            isSubmitting={isSubmitting}
-            isLoadingData={isLoadingData}
-            needsApproval={needsApproval}
-            onHandleApprove={onHandleApprove}
-            onHandleStaking={onHandleStaking}
-            isCorrectNetwork={isCorrectNetwork}
-            tokenBalance={formattedTokenBalance}
-            onHandleNetworkSwitch={onHandleNetworkSwitch}
-            checkAndUpdateApprovalNeeded={checkAndUpdateApprovalNeeded}
-          />
-          <WithdrawForm
-            isTestnet={isTestnet}
-            stakerData={stakerData}
-            tokenSymbol={tokenSymbol}
-            onToggleAlert={onToggleAlert}
-            isWithdrawing={isWithdrawing}
-            onHandleWithdraw={onHandleWithdraw}
-            isCorrectNetwork={isCorrectNetwork}
-            onHandleNetworkSwitch={onHandleNetworkSwitch}
-          />
-        </HStack>
-        <VStack>
+        <VStack w="full" gap={4} alignItems={"flex-start"}>
+          <HStack
+            justifyContent={"space-between"}
+            w={"full"}
+            alignItems={"center"}
+            pb={2}
+          >
+            <Text fontWeight="medium" fontSize={{ base: "lg", md: "xl" }}>
+              MOR Subnet Staking
+            </Text>
+            <NetworkDropdown />
+          </HStack>
+          <Stack
+            width={"full"}
+            gap={5}
+            align={{ base: "center", md: "stretch" }}
+            direction={{ base: "column", md: "row" }}
+          >
+            <StakeForm
+              subnetId={subnetId}
+              isTestnet={isTestnet}
+              isStaking={isStaking}
+              tokenSymbol={tokenSymbol}
+              isApproving={isApproving}
+              isSubmitting={isSubmitting}
+              isLoadingData={isLoadingData}
+              needsApproval={needsApproval}
+              onHandleApprove={onHandleApprove}
+              onHandleStaking={onHandleStaking}
+              isCorrectNetwork={isCorrectNetwork}
+              tokenBalance={formattedTokenBalance}
+              onHandleNetworkSwitch={onHandleNetworkSwitch}
+              checkAndUpdateApprovalNeeded={checkAndUpdateApprovalNeeded}
+            />
+            <WithdrawForm
+              isTestnet={isTestnet}
+              stakerData={stakerData}
+              tokenSymbol={tokenSymbol}
+              onToggleAlert={onToggleAlert}
+              isWithdrawing={isWithdrawing}
+              onHandleWithdraw={onHandleWithdraw}
+              isCorrectNetwork={isCorrectNetwork}
+              onHandleNetworkSwitch={onHandleNetworkSwitch}
+            />
+          </Stack>
+        </VStack>
+        <VStack alignItems={"flex-start"} gap={4} w={"full"}>
           <Text fontWeight="medium" fontSize={"xl"}>
             My Staking Positions
           </Text>
           <StakingPosition
-            stakerData={stakerData}
+            getAbi={getAbi}
+            subnetId={subnetId}
             isTestnet={isTestnet}
+            contractAddress={contractAddress}
+            stakerData={stakerData}
             tokenSymbol={tokenSymbol}
           />
         </VStack>

@@ -4,7 +4,9 @@ import {
   HStack,
   Input,
   InputGroup,
+  Stack,
   Text,
+  useRecipe,
   VStack,
 } from "@chakra-ui/react";
 import { useForm, Controller } from "react-hook-form";
@@ -15,6 +17,7 @@ import { useAccount } from "wagmi";
 import { SUBNET_CONFIG } from "staking-dashboard/lib/configs/subnet.config";
 import { formatUnits, parseUnits } from "viem";
 import { formatStakerData } from "staking-dashboard/lib/helpers";
+import { buttonRecipe } from "staking-dashboard/lib/configs/theme";
 
 export type WithdrawFormProps = {
   stakerData: unknown;
@@ -74,7 +77,8 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
       withdrawAmount: "",
     },
   });
-  const { address: userAddress } = useAccount();
+  const { address: userAddress, isConnected } = useAccount();
+  const recipe = useRecipe({ recipe: buttonRecipe });
 
   // =============== STATE
   const [userStakedAmount, setUserStakedAmount] = useState<number>(0);
@@ -93,6 +97,7 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
     !withdrawAmount ||
     isAmountExceedingBalance ||
     isAmountInvalid;
+  const styles = recipe({ visual: "outline" });
 
   // =============== EVENTS
   const onSubmit = async (data: { withdrawAmount: string }) => {
@@ -232,29 +237,47 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
   return (
     <VStack
       p={4}
+      pb={6}
       bg="card"
       borderRadius="md"
       width="full"
       border="1px solid"
       borderColor="border"
-      gap={4}
+      gap={{ base: 2, md: 3 }}
     >
       <VStack alignItems={"flex-start"} width="full">
-        <Text fontSize={"xl"} fontWeight={"medium"}>
+        <Text fontSize={"lg"} fontWeight={"bold"} color="gray.200">
           Withdraw MOR
         </Text>
       </VStack>{" "}
       <form onSubmit={handleSubmit(onSubmit)} style={{ width: "100%" }}>
-        <VStack width="full" gap={3}>
+        <VStack width="full" gap={4} px={{ md: 2 }}>
           <Controller
             name="withdrawAmount"
             control={control}
             render={({ field }) => (
               <VStack width="full" alignItems={"flex-start"}>
-                <HStack>
-                  <Text fontSize={"xs"}>Amount to withdraw</Text>
-                  <Text>{timeLeft}</Text>
-                </HStack>
+                <Stack
+                  w="full"
+                  justifyContent="space-between"
+                  alignItems={{ base: "flex-start", md: "flex-end" }}
+                  direction={{ base: "column", md: "row" }}
+                >
+                  <Text fontSize={"sm"} fontWeight={"medium"}>
+                    Amount to withdraw
+                  </Text>
+                  <Text fontSize={"xs"} color="gray.400">
+                    Time until unlock:
+                    <span
+                      style={{
+                        marginLeft: 4,
+                        color: "white",
+                      }}
+                    >
+                      {timeLeft}
+                    </span>
+                  </Text>
+                </Stack>
                 <InputGroup
                   endElement={
                     <Button
@@ -264,7 +287,9 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
                       color="primary"
                       variant={"outline"}
                       onClick={onMaxClick}
-                      disabled={isWithdrawing}
+                      disabled={
+                        isWithdrawing || !isConnected || userStakedAmount <= 0
+                      }
                     >
                       Max
                     </Button>
@@ -279,6 +304,7 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
                         value: e.target.value,
                       });
                     }}
+                    css={{ "--focus-color": "{colors.primary}" }}
                     type="number"
                     min={0}
                     step={0.01}
@@ -294,13 +320,11 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
           />
           <Button
             type="submit"
-            bgColor="primary"
-            color="white"
+            css={styles}
             width={"full"}
             borderRadius={"sm"}
             loading={isWithdrawing}
             disabled={disableWithdraw}
-            fontWeight="medium"
           >
             {renderButtonText()}
           </Button>

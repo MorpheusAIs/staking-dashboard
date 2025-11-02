@@ -265,3 +265,13 @@ export const formatStakerData = (
     timeLeft: calculatedTimeLeft,
   };
 };
+
+// Helper to convert smallest unit (wei-like) to MOR
+export const toMOR = (value: number) => {
+  const morValue = Number(value) / 1e18;
+  return Math.floor(morValue).toLocaleString();
+};
+// Helper to convert seconds to days
+export const secondsToDays = (seconds: number) => {
+  return Math.ceil(Number(seconds) / (24 * 3600));
+};
