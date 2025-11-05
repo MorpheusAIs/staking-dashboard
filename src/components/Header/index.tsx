@@ -91,6 +91,7 @@ export const Header = () => {
           bg="yellow.200"
           borderRadius={"md"}
           color="black"
+          zIndex={2}
           py={2}
           px={3}
           my={3}
