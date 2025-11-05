@@ -1,8 +1,11 @@
 "use client";
 
-import { HStack, VStack, Text, Stack, StackProps } from "@chakra-ui/react";
+import { HStack, VStack, Text, Stack, StackProps, Box } from "@chakra-ui/react";
 import map from "lodash/map";
-import { SideBarItems } from "staking-dashboard/utils/constants";
+import {
+  SIDEBAR_WIDTH,
+  SideBarItems,
+} from "staking-dashboard/lib/configs/constants";
 import { usePathname, useRouter } from "next/navigation";
 
 type SideBarContentProps = StackProps & {
@@ -84,17 +87,23 @@ export const SideBarContent: React.FC<SideBarContentProps> = (props) => {
 export const SideBar = () => {
   // =============== RETURN
   return (
-    <VStack
-      width="250px"
-      position={"fixed"}
-      top={85}
-      left={0}
-      bg="transparent"
-      height="100vh"
-      display={{ base: "none", lg: "flex" }}
+    <Box
+      display={{ base: "none", lg: "block" }}
+      h={"full"}
+      width={SIDEBAR_WIDTH}
     >
-      <SideBarContent />
-    </VStack>
+      <VStack
+        width={SIDEBAR_WIDTH}
+        position={"fixed"}
+        top={85}
+        left={0}
+        bg="transparent"
+        height="100vh"
+        display={{ base: "none", lg: "flex" }}
+      >
+        <SideBarContent />
+      </VStack>
+    </Box>
   );
 };
 

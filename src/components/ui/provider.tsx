@@ -2,7 +2,7 @@
 
 import { ChakraProvider } from "@chakra-ui/react";
 import { ColorModeProvider, type ColorModeProviderProps } from "./color-mode";
-import { system } from "staking-dashboard/utils/theme";
+import { system } from "staking-dashboard/lib/configs/theme";
 
 export function Provider(props: ColorModeProviderProps) {
   return (

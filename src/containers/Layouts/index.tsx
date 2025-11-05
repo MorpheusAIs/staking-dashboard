@@ -1,10 +1,10 @@
 import { Box, HStack, Stack, Text, VStack } from "@chakra-ui/react";
-import Image from "next/image";
 import { ReactNode } from "react";
 import Header from "staking-dashboard/components/Header";
 import SideBar from "staking-dashboard/components/SideBar";
 import BackgroundImage from "../../../public/background-logo.svg";
 import SocialMedia from "staking-dashboard/components/SocialMedia";
+import { Toaster } from "staking-dashboard/components/ui/toaster";
 
 export type LayoutsProps = {
   children: ReactNode;
@@ -21,18 +21,18 @@ export const Layouts: React.FC<LayoutsProps> = (props) => {
   // =============== VIEWS
   return (
     <VStack
-      h="100vh"
       position="relative"
-      overflow="hidden"
+      height={{ md: "100%" }}
       justifyContent="space-between"
+      // This can be removed if you don't want the background image
       _before={{
         content: `""`,
         position: "absolute",
         top: "50%",
         left: "50%",
         transform: "translate(-50%, -50%)",
-        w: { base: 350, md: 500 },
-        h: { base: 350, md: 500 },
+        w: { base: 0, md: 0, lg: 950 },
+        h: { base: 0, lg: "100%" },
         bgImage: `url(${BackgroundImage.src})`,
         bgRepeat: "no-repeat",
         backgroundPosition: "center",
@@ -41,11 +41,18 @@ export const Layouts: React.FC<LayoutsProps> = (props) => {
       }}
     >
       <Header />
-      <HStack h="100%" width="full" justifyContent={"center"}>
+      <Stack
+        direction={{ base: "column", lg: "row" }}
+        h="100%"
+        width="full"
+        justifyContent={"space-between"}
+        gap={4}
+      >
         <SideBar />
-        <Stack>{children}</Stack>
+        <Toaster />
+        {children}
         <SocialMedia />
-      </HStack>
+      </Stack>
       <Text
         fontSize="sm"
         color="textSecondary"

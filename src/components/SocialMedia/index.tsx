@@ -1,7 +1,10 @@
 "use client";
 
-import { VStack, Stack, HStack } from "@chakra-ui/react";
-import { SocialMediaLinks } from "staking-dashboard/utils/constants";
+import { VStack, Stack, HStack, Box } from "@chakra-ui/react";
+import {
+  SIDEBAR_WIDTH,
+  SocialMediaLinks,
+} from "staking-dashboard/lib/configs/constants";
 import map from "lodash/map";
 
 /**
@@ -27,11 +30,13 @@ export const SocialMedia = () => {
 
   // =============== VIEWS
   return (
-    <VStack position={"fixed"} top={85} right={5}>
-      <HStack pt={8} width="full" px={5} gap={4}>
-        {renderSocialMedia()}
-      </HStack>
-    </VStack>
+    <Box display={"block"} width={{ base: "full", lg: SIDEBAR_WIDTH }}>
+      <VStack position={{ base: "static", lg: "fixed" }} top={85} right={5}>
+        <HStack pt={8} width="full" px={5} gap={4} justifyContent="center">
+          {renderSocialMedia()}
+        </HStack>
+      </VStack>
+    </Box>
   );
 };
 
