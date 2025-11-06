@@ -10,11 +10,13 @@ export const CapitalStaking = () => {
   return (
     <VStack
       bg="card"
-      borderRadius="md"
-      p={100}
+      borderRadius="xl"
+      p={{ base: 5, md: 6 }}
+      gap={7}
       width="full"
+      h={"full"}
       justifyContent="center"
-      backdropFilter="blur(8px)"
+      backdropFilter="blur(20px)"
       border="1px solid"
       borderColor="border"
       alignItems="center"
