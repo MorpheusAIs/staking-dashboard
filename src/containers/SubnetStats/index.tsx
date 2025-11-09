@@ -17,8 +17,8 @@ import {
   fetchQuery,
   GRAPHQL_ENDPOINTS,
 } from "staking-dashboard/lib/graphql/fetchQuery";
-import { useChainId } from "wagmi";
 import { BsStack } from "react-icons/bs";
+import { CHAIN_ID } from "staking-dashboard/lib/configs/constants";
 import { FaUsers } from "react-icons/fa";
 import { LuClock } from "react-icons/lu";
 import {
@@ -38,36 +38,51 @@ export type SubnetStatsProps = {
  * ===========================
  */
 export const SubnetStats: React.FC<SubnetStatsProps> = (props) => {
-  const { isTestnet, tokenSymbol } = props;
+  const { tokenSymbol } = props;
   // =============== VARIABLES
   const projectID = SUBNET_CONFIG.subnetID;
-  const chain = useChainId();
+  
+  // ALWAYS fetch from the configured network (ARBITRUM)
+  // User's current network is IRRELEVANT - stats are always from ARBITRUM
+  const dataFetchNetwork = SUBNET_CONFIG.dataFetchNetwork;
+  
+  // Determine if the DATA network is testnet (not the user's network)
+  const isDataNetworkTestnet = dataFetchNetwork === CHAIN_ID.ARBITRUM_SEPOLIA || dataFetchNetwork === CHAIN_ID.SEPOLIA;
+  
+  // Check if endpoint exists
+  const hasEndpoint = GRAPHQL_ENDPOINTS[dataFetchNetwork];
+  
   // =============== HOOKS
   const {
     data: builderData,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["builderProject", projectID, chain],
+    queryKey: ["builderProject", projectID, dataFetchNetwork],
     queryFn: () =>
       fetchQuery({
-        query: isTestnet
+        query: isDataNetworkTestnet
           ? GET_BUILDERS_PROJECT_BY_ID_TESTNET
           : GET_BUILDERS_PROJECT_BY_ID,
         variables: { id: projectID },
-        chain,
+        chain: dataFetchNetwork, // ALWAYS fetch from configured network
       }),
+    enabled: !!hasEndpoint, // Only check if endpoint exists, NOT current chain
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchInterval: false,
   });
 
   // =============== HELPERS
   const userOrUsers = (count: number) => (count === 1 ? "user" : "users");
 
   // =============== VARIABLES
-  const data = isTestnet
+  const data = isDataNetworkTestnet
     ? builderData?.builderSubnet
     : builderData?.buildersProject;
 
-  const withdrawPeriod = isTestnet
+  const withdrawPeriod = isDataNetworkTestnet
     ? data?.withdrawLockPeriodAfterStake
     : data?.withdrawLockPeriodAfterDeposit;
 

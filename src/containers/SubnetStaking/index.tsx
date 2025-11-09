@@ -5,9 +5,9 @@ import WithdrawForm from "./WithdrawForm";
 import StakingPosition from "./StakingPosition";
 import { useStaking } from "staking-dashboard/hooks/useStaking";
 import { SUBNET_CONFIG } from "staking-dashboard/lib/configs/subnet.config";
-import { useChainId } from "wagmi";
+import { useChainId, useSwitchChain, useAccount } from "wagmi";
 import { useEffect, useRef, useState } from "react";
-import { arbitrumSepolia } from "viem/chains";
+import { arbitrumSepolia, arbitrum, mainnet } from "viem/chains";
 import { formatEther } from "viem";
 import { NetworkDropdown } from "staking-dashboard/components/NetworkSwitchDropdown";
 import SubnetStats from "../SubnetStats";
@@ -20,9 +20,25 @@ import SubnetStats from "../SubnetStats";
 export const SubnetStaking = () => {
   // =============== HOOKS
   const chainId = useChainId();
+  const { switchChain } = useSwitchChain();
+  const { isConnected } = useAccount();
 
   // =============== STATE
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [hasSwitched, setHasSwitched] = useState(false);
+
+  // =============== EFFECTS
+  // Auto-switch away from mainnet to Arbitrum when on /subnet (only once)
+  useEffect(() => {
+    if (isConnected && chainId === mainnet.id && switchChain && !hasSwitched) {
+      console.log("Switching from mainnet to Arbitrum...");
+      switchChain({ chainId: arbitrum.id });
+      setHasSwitched(true);
+    }
+  }, [chainId, switchChain, hasSwitched, isConnected]);
+  
+  // Show warning if stuck on mainnet (only when wallet is connected)
+  const isOnMainnet = isConnected && chainId === mainnet.id;
 
   // =============== VARIABLES
   const subnetId = SUBNET_CONFIG.subnetID || "";
@@ -97,6 +113,27 @@ export const SubnetStaking = () => {
       mb={2}
       justifyContent={"center"}
     >
+      {isOnMainnet && (
+        <Alert.Root status="warning" alignItems={"center"} rounded="md">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Wrong Network</Alert.Title>
+            <Alert.Description>
+              Subnet staking is not available on Ethereum Mainnet. Please switch to Arbitrum or Base.
+            </Alert.Description>
+          </Alert.Content>
+          <Button
+            alignSelf="center"
+            fontWeight="medium"
+            onClick={() => switchChain({ chainId: arbitrum.id })}
+            bg="black"
+            color="white"
+            _hover={{ bg: "gray.800" }}
+          >
+            Switch to Arbitrum
+          </Button>
+        </Alert.Root>
+      )}
       {alertMessage && (
         <Alert.Root status="error" alignItems={"center"} rounded="md">
           <Alert.Indicator />

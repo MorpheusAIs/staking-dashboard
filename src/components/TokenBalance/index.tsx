@@ -5,20 +5,22 @@ import { useMORBalances } from "staking-dashboard/hooks/useMORBalances";
 import { useEffect } from "react";
 import { formatBalance } from "staking-dashboard/lib/helpers";
 import { BaseIcon } from "../Icons/BaseIcon";
+import { EthereumIcon } from "../Icons/EthereumIcon";
 import { CHAIN_ID } from "staking-dashboard/lib/configs/constants";
-
-export type TokenBalanceProps = {};
+import { useRouteNetwork } from "staking-dashboard/hooks/useRouteNetwork";
 
 /**
  * ===========================
  * MAIN
  * ===========================
  */
-export const TokenBalance: React.FC<TokenBalanceProps> = () => {
+export const TokenBalance: React.FC = () => {
   // =============== HOOKS
   const { address } = useAccount();
   const chainId = useChainId();
+  const { isCapitalRoute } = useRouteNetwork();
   const {
+    mainnetBalance,
     arbitrumBalance,
     baseBalance,
     refreshBalances,
@@ -54,6 +56,17 @@ export const TokenBalance: React.FC<TokenBalanceProps> = () => {
     );
   }
 
+  // For capital route, show only mainnet
+  if (isCapitalRoute) {
+    return (
+      <HStack gap={1} display={{ base: "none", md: "flex" }}>
+        <EthereumIcon size={24} />
+        <Text>{formatBalance(mainnetBalance as bigint)} MOR</Text>
+      </HStack>
+    );
+  }
+
+  // For other routes, show ARB + BASE
   return (
     <HStack gap={5} display={{ base: "none", md: "flex" }}>
       <HStack>

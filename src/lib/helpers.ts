@@ -63,7 +63,7 @@ export const formatStakingError = (
 export const validateAndExtractChainConfig = (
   args: ExtractChainConfigArgs
 ): ExtractChainConfigReturn | null => {
-  const { networkChainId, isTestnet, onError, onWarning } = args;
+  const { networkChainId, isTestnet, onWarning } = args;
   const chain = getChainById(networkChainId, isTestnet ? "testnet" : "mainnet");
 
   if (!chain) {

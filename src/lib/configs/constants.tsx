@@ -3,7 +3,7 @@ import { FaArrowTrendUp } from "react-icons/fa6";
 import { FaTelegramPlane } from "react-icons/fa";
 import { CiMail } from "react-icons/ci";
 import { FaXTwitter } from "react-icons/fa6";
-import { arbitrum, arbitrumSepolia, base, sepolia } from "wagmi/chains";
+import { arbitrum, arbitrumSepolia, base, mainnet, sepolia } from "wagmi/chains";
 
 export const SideBarItems = [
   {
@@ -67,6 +67,7 @@ export const MOR_ABI = [
 ];
 
 export const CHAIN_ID: Record<string, number> = {
+  MAINNET: mainnet.id,
   ARBITRUM: arbitrum.id,
   BASE: base.id,
   ARBITRUM_SEPOLIA: arbitrumSepolia.id,

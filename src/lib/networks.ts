@@ -25,6 +25,9 @@ export const mainnetChains: Record<string, ChainConfig> = {
       },
     },
     contracts: {
+      // MOR Token
+      morToken: toContract("0xcbb8f1bda10b9696c57e13bc128fe674769dcec0"),
+      
       // Legacy V1 contracts
       erc1967Proxy: toContract("0x47176B2Af9885dC6C4575d4eFd63895f7Aaa4790"),
       stETH: toContract("0xae7ab96520DE3A18E5e111B5EaAb095312D7fE84"),

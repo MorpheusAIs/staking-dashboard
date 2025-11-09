@@ -15,4 +15,8 @@ export const SUBNET_CONFIG = {
     CHAIN_ID.SEPOLIA,
     CHAIN_ID.ARBITRUM,
   ],
+  // Network(s) where this subnet's GraphQL data should be fetched from
+  // For mainnet subnets, use ARBITRUM or BASE
+  // For testnet subnets, use ARBITRUM_SEPOLIA
+  dataFetchNetwork: CHAIN_ID.ARBITRUM, // Subnet is on ARBITRUM or BASE.
 };

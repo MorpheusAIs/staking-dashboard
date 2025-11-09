@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { morTokenContracts } from "staking-dashboard/lib/contracts";
 import { CHAIN_ID, MOR_ABI } from "staking-dashboard/lib/configs/constants";
-import { useReadContract } from "wagmi";
+import { useConfig } from "wagmi";
+import { readContracts } from "wagmi/actions";
+import type { Abi } from "viem";
 
 declare global {
   interface Window {
@@ -10,74 +12,88 @@ declare global {
 }
 
 export const useMORBalances = (address: `0x${string}` | undefined) => {
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  const { data: arbitrumBalance, refetch: refetchArbitrum } = useReadContract({
-    address: morTokenContracts[CHAIN_ID.ARBITRUM] as `0x${string}`,
-    abi: MOR_ABI,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
-    chainId: CHAIN_ID.ARBITRUM,
-    account: address,
+  const config = useConfig();
+  const [balances, setBalances] = useState({
+    mainnetBalance: undefined as bigint | undefined,
+    arbitrumBalance: undefined as bigint | undefined,
+    baseBalance: undefined as bigint | undefined,
+    arbitrumSepoliaBalance: undefined as bigint | undefined,
   });
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { data: baseBalance, refetch: refetchBase } = useReadContract({
-    address: morTokenContracts[CHAIN_ID.BASE] as `0x${string}`,
-    abi: MOR_ABI,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
-    chainId: CHAIN_ID.BASE,
-    account: address,
-  });
-
-  const { data: arbitrumSepoliaBalance, refetch: refetchSepolia } =
-    useReadContract({
-      address: morTokenContracts[CHAIN_ID.ARBITRUM_SEPOLIA] as `0x${string}`,
-      abi: MOR_ABI,
-      functionName: "balanceOf",
-      args: address ? [address] : undefined,
-      chainId: CHAIN_ID.ARBITRUM_SEPOLIA,
-      account: address,
-      query: {
-        enabled: !!address && !!morTokenContracts[CHAIN_ID.ARBITRUM_SEPOLIA],
-      },
-    });
-
-  // Function to refresh all balances
+  // Function to refresh all balances using a single batched multicall
   const refreshBalances = useCallback(async () => {
-    await Promise.all([refetchArbitrum(), refetchBase(), refetchSepolia()]);
-  }, [refetchArbitrum, refetchBase, refetchSepolia]);
+    if (!address) return;
 
-  // Set up polling for balance updates instead of watching events
-  useEffect(() => {
-    if (!address) {
-      // Clear interval if no address
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-      return;
+    setIsLoading(true);
+    try {
+      // Batch all 4 balance reads into ONE multicall
+      const contracts = [
+        {
+          address: morTokenContracts[CHAIN_ID.MAINNET] as `0x${string}`,
+          abi: MOR_ABI as Abi,
+          functionName: "balanceOf",
+          args: [address],
+          chainId: CHAIN_ID.MAINNET,
+        },
+        {
+          address: morTokenContracts[CHAIN_ID.ARBITRUM] as `0x${string}`,
+          abi: MOR_ABI as Abi,
+          functionName: "balanceOf",
+          args: [address],
+          chainId: CHAIN_ID.ARBITRUM,
+        },
+        {
+          address: morTokenContracts[CHAIN_ID.BASE] as `0x${string}`,
+          abi: MOR_ABI as Abi,
+          functionName: "balanceOf",
+          args: [address],
+          chainId: CHAIN_ID.BASE,
+        },
+        {
+          address: morTokenContracts[CHAIN_ID.ARBITRUM_SEPOLIA] as `0x${string}`,
+          abi: MOR_ABI as Abi,
+          functionName: "balanceOf",
+          args: [address],
+          chainId: CHAIN_ID.ARBITRUM_SEPOLIA,
+        },
+      ];
+
+      const results = await readContracts(config, { contracts });
+
+      setBalances({
+        mainnetBalance: results[0].status === "success" ? (results[0].result as bigint) : undefined,
+        arbitrumBalance: results[1].status === "success" ? (results[1].result as bigint) : undefined,
+        baseBalance: results[2].status === "success" ? (results[2].result as bigint) : undefined,
+        arbitrumSepoliaBalance: results[3].status === "success" ? (results[3].result as bigint) : undefined,
+      });
+    } catch (error) {
+      console.error("Error fetching MOR balances:", error);
+    } finally {
+      setIsLoading(false);
     }
+  }, [address, config]);
 
-    // Poll for balance updates every 30 seconds
-    // This is more reliable than event watching with RPC providers that don't support filters
-    intervalRef.current = setInterval(() => {
+  // Fetch balances on mount
+  useEffect(() => {
+    if (address) {
       refreshBalances();
-    }, 30000); // 30 seconds
+    }
+  }, [address, refreshBalances]);
 
-    // Cleanup interval on unmount or address change
+  // Expose refresh function globally for manual refresh
+  useEffect(() => {
+    if (address) {
+      window.refreshMORBalances = refreshBalances;
+    }
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
+      delete window.refreshMORBalances;
     };
   }, [address, refreshBalances]);
 
   return {
-    arbitrumBalance,
-    baseBalance,
-    arbitrumSepoliaBalance,
+    ...balances,
     refreshBalances,
+    isLoading,
   };
 };

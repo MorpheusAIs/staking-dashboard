@@ -1,7 +1,6 @@
 "use client";
 import {
   Button,
-  HStack,
   Input,
   InputGroup,
   Stack,
@@ -13,8 +12,6 @@ import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { useEffect } from "react";
-import { useAccount } from "wagmi";
-import "staking-dashboard/app/global.css";
 import { toaster } from "staking-dashboard/components/ui/toaster";
 import { formatToOneDecimal } from "staking-dashboard/lib/helpers";
 import { SUBNET_CONFIG } from "staking-dashboard/lib/configs/subnet.config";
@@ -63,7 +60,6 @@ const schema = yup.object({
 export const StakeForm: React.FC<StakeFormProps> = (props) => {
   const {
     subnetId,
-    isTestnet,
     tokenSymbol,
     isApproving,
     isSubmitting,
@@ -91,7 +87,6 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
       stakeAmount: "",
     },
   });
-  const { chain } = useAccount();
   const recipe = useRecipe({ recipe: buttonRecipe });
 
   // =============== VARIABLES
@@ -106,7 +101,7 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
   useEffect(() => {
     if (!validStakeAmount || isLoadingData) return;
     checkAndUpdateApprovalNeeded(stakeAmount);
-  }, [stakeAmount, isLoadingData, checkAndUpdateApprovalNeeded]);
+  }, [stakeAmount, isLoadingData, checkAndUpdateApprovalNeeded, validStakeAmount]);
 
   // =============== EVENTS
   const onMaxClick = () => {
@@ -180,30 +175,6 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
       await onHandleStaking(stakeAmount, () => {
         setValue("stakeAmount", "");
       });
-    }
-  };
-
-  // =============== MEMO
-  const networksToDisplay = (): string[] => {
-    if (!chain) {
-      // fallback logic if wallet not connected
-      if (isTestnet) {
-        return ["Arbitrum Sepolia"];
-      }
-
-      return ["Base"];
-    }
-
-    // map common chain names
-    switch (chain.id) {
-      case 42161:
-        return ["Arbitrum"];
-      case 8453:
-        return ["Base"];
-      case 421614:
-        return ["Arbitrum Sepolia"];
-      default:
-        return [chain.name]; // fallback to whatever network user connected to
     }
   };
 
