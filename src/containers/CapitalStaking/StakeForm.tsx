@@ -7,6 +7,7 @@ import {
   Text,
   useRecipe,
   VStack,
+  HStack,
 } from "@chakra-ui/react";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -14,27 +15,27 @@ import * as yup from "yup";
 import { useEffect } from "react";
 import { toaster } from "staking-dashboard/components/ui/toaster";
 import { formatToOneDecimal } from "staking-dashboard/lib/helpers";
-import { SUBNET_CONFIG } from "staking-dashboard/lib/configs/subnet.config";
+import { CAPITAL_CONFIG } from "staking-dashboard/lib/configs/capital.config";
 import { buttonRecipe } from "staking-dashboard/lib/configs/theme";
 
 export type StakeFormProps = {
-  subnetId: string;
-  isTestnet: boolean;
-  isStaking: boolean;
-  tokenSymbol: string;
+  selectedToken: string;
   isApproving: boolean;
   tokenBalance: number;
   isLoadingData: boolean;
   needsApproval: boolean;
   isSubmitting?: boolean;
+  lockPeriodDays: number;
   isCorrectNetwork: () => boolean;
   onHandleApprove: (amount: string) => Promise<void>;
   onHandleStaking: (
     amount: string,
+    lockPeriodDays: number,
     onStakingSuccess: () => void
   ) => Promise<void>;
   onHandleNetworkSwitch: () => Promise<true | undefined>;
-  checkAndUpdateApprovalNeeded: (amount: string) => boolean;
+  onLockPeriodChange: (days: number) => void;
+  checkAndUpdateApprovalNeeded: (amount?: string) => Promise<boolean>;
 };
 
 const schema = yup.object({
@@ -50,6 +51,13 @@ const schema = yup.object({
       const num = parseFloat(value || "");
       return !isNaN(num) && num > 0;
     }),
+  lockPeriod: yup
+    .number()
+    .required("Lock period is required")
+    .min(
+      CAPITAL_CONFIG.params.minLockPeriodDays,
+      `Minimum lock period is ${CAPITAL_CONFIG.params.minLockPeriodDays} days`
+    ),
 });
 
 /**
@@ -59,8 +67,7 @@ const schema = yup.object({
  */
 export const StakeForm: React.FC<StakeFormProps> = (props) => {
   const {
-    subnetId,
-    tokenSymbol,
+    selectedToken,
     isApproving,
     isSubmitting,
     tokenBalance,
@@ -69,6 +76,7 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
     onHandleApprove,
     onHandleStaking,
     isCorrectNetwork,
+    onLockPeriodChange,
     onHandleNetworkSwitch,
     checkAndUpdateApprovalNeeded,
   } = props;
@@ -85,12 +93,14 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
     resolver: yupResolver(schema),
     defaultValues: {
       stakeAmount: "",
+      lockPeriod: CAPITAL_CONFIG.params.minLockPeriodDays,
     },
   });
   const recipe = useRecipe({ recipe: buttonRecipe });
 
   // =============== VARIABLES
   const stakeAmount = watch("stakeAmount");
+  const lockPeriod = watch("lockPeriod");
   const styles = recipe({ visual: "solid" });
   const validStakeAmount = stakeAmount && parseFloat(stakeAmount) > 0;
   const approvalState = isApproving || (needsApproval && validStakeAmount);
@@ -102,6 +112,13 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
     if (!validStakeAmount || isLoadingData) return;
     checkAndUpdateApprovalNeeded(stakeAmount);
   }, [stakeAmount, isLoadingData, checkAndUpdateApprovalNeeded, validStakeAmount]);
+
+  // Update lock period in parent
+  useEffect(() => {
+    if (lockPeriod) {
+      onLockPeriodChange(lockPeriod);
+    }
+  }, [lockPeriod, onLockPeriodChange]);
 
   // =============== EVENTS
   const onMaxClick = () => {
@@ -124,8 +141,16 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
     // Ensure non-negative
     const numericValue = Math.max(parseFloat(value) || 0, 0);
 
-    // Round to 1 decimal place
-    const formattedValue = Math.floor(numericValue * 10) / 10;
+    // Round to appropriate decimal places based on token
+    const token = CAPITAL_CONFIG.supportedTokens[1]?.find(
+      (t) => t.symbol === selectedToken
+    );
+    const decimals = token?.decimals || 18;
+    const decimalPlaces = decimals === 6 ? 2 : decimals === 8 ? 4 : 4;
+    
+    const formattedValue =
+      Math.floor(numericValue * Math.pow(10, decimalPlaces)) /
+      Math.pow(10, decimalPlaces);
 
     // Update the form field
     onChange(formattedValue.toString());
@@ -137,17 +162,6 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
   };
 
   const onSubmit = async () => {
-    // Validate subnetId is present
-    if (!subnetId) {
-      toaster.create({
-        title: "Failed to stake",
-        description:
-          "Subnet ID is missing. This is likely because the builder's mainnet project ID is not set correctly.",
-        type: "error",
-      });
-      return;
-    }
-
     if (!validStakeAmount) {
       toaster.create({
         title: "Invalid stake amount",
@@ -160,7 +174,7 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
     // If not on the correct network, switch first
     if (!isCorrectNetwork()) {
       await onHandleNetworkSwitch();
-      return; // Exit after network switch to prevent further action
+      return;
     }
 
     // Force a fresh check for approval before proceeding
@@ -168,33 +182,21 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
       ? await checkAndUpdateApprovalNeeded(stakeAmount)
       : false;
 
-    // Already on correct network, handle approval or staking
+    // Handle approval or staking
     if (currentlyNeedsApproval || needsApproval) {
       await onHandleApprove(stakeAmount);
     } else if (stakeAmount && parseFloat(stakeAmount) > 0) {
-      await onHandleStaking(stakeAmount, () => {
+      await onHandleStaking(stakeAmount, lockPeriod, () => {
         setValue("stakeAmount", "");
       });
     }
   };
 
   // =============== HELPERS
-  // Check if entered amount is above minimum and below maximum
   const isAmountValid = () => {
     const amount = parseFloat(stakeAmount);
-    // if amount is NaN or less than or equal to 0, invalid
     if (isNaN(amount) || amount <= 0) return false;
-
-    // if amount is below min deposit, invalid
-    if (
-      SUBNET_CONFIG.minDeposit !== undefined &&
-      amount < SUBNET_CONFIG.minDeposit
-    )
-      return false;
-
-    // if amount is above the available balance that user has, invalid
     if (tokenBalance !== undefined && amount > tokenBalance) return false;
-
     return true;
   };
 
@@ -203,11 +205,21 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
     return !isNaN(amount) && amount > 0;
   };
 
+  // Calculate APY boost based on lock period
+  const calculateAPYBoost = () => {
+    const minDays = CAPITAL_CONFIG.params.minLockPeriodDays;
+    const maxBoost = 2.0; // 2x multiplier at max lock
+    const maxDays = 365; // 1 year for max boost
+    
+    const boost = 1 + ((lockPeriod - minDays) / (maxDays - minDays)) * (maxBoost - 1);
+    return Math.min(boost, maxBoost).toFixed(2);
+  };
+
   // =============== RENDER
   const renderButtonText = () => {
-    if (!isCorrectNetwork()) return "Switch to Arbitrum";
-    if (needsApproval && validStakeAmount) return `Approve ${tokenSymbol}`;
-    return `Stake ${tokenSymbol}`;
+    if (!isCorrectNetwork()) return "Switch to Mainnet";
+    if (needsApproval && validStakeAmount) return `Approve ${selectedToken}`;
+    return `Stake ${selectedToken}`;
   };
 
   // =============== VIEWS
@@ -224,11 +236,15 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
     >
       <VStack alignItems={"flex-start"} width="full">
         <Text fontSize={"lg"} fontWeight={"bold"} color="gray.200">
-          Stake MOR
+          Stake {selectedToken}
+        </Text>
+        <Text fontSize={"xs"} color="gray.400">
+          Lock your tokens to earn MOR rewards
         </Text>
       </VStack>
       <form onSubmit={handleSubmit(onSubmit)} style={{ width: "100%" }}>
         <VStack width="full" gap={4} px={{ md: 2 }}>
+          {/* Amount Input */}
           <Controller
             name="stakeAmount"
             control={control}
@@ -244,14 +260,14 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
                     Amount to stake
                   </Text>
                   <Text fontSize={"xs"} color="gray.400">
-                    Minimum deposit:
+                    Available:
                     <span
                       style={{
                         marginLeft: 4,
                         color: "white",
                       }}
                     >
-                      {SUBNET_CONFIG.minDeposit} {tokenSymbol}
+                      {tokenBalance?.toFixed(4) || "0"} {selectedToken}
                     </span>
                   </Text>
                 </Stack>
@@ -298,6 +314,96 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
               </VStack>
             )}
           />
+
+          {/* Lock Period Input */}
+          <Controller
+            name="lockPeriod"
+            control={control}
+            render={({ field }) => (
+              <VStack width="full" alignItems={"flex-start"}>
+                <Stack
+                  w="full"
+                  justifyContent="space-between"
+                  alignItems={{ base: "flex-start", md: "flex-end" }}
+                  direction={{ base: "column", md: "row" }}
+                >
+                  <Text fontSize={"sm"} fontWeight={"medium"}>
+                    Lock Period (Days)
+                  </Text>
+                  <Text fontSize={"xs"} color="gray.400">
+                    Minimum: {CAPITAL_CONFIG.params.minLockPeriodDays} days
+                  </Text>
+                </Stack>
+                <HStack width="full" gap={2}>
+                  <Input
+                    {...field}
+                    width="full"
+                    css={{ "--focus-color": "{colors.primary}" }}
+                    placeholder="Enter lock period"
+                    type="number"
+                    min={CAPITAL_CONFIG.params.minLockPeriodDays}
+                    step={1}
+                    onChange={(e) => field.onChange(parseInt(e.target.value))}
+                  />
+                  <VStack width="200px" alignItems="flex-start" gap={1}>
+                    <Text fontSize="xs" color="gray.400">
+                      Quick select:
+                    </Text>
+                    <HStack width="full" gap={1}>
+                      <Button
+                        size="xs"
+                        flex="1"
+                        variant="outline"
+                        borderColor="border"
+                        onClick={() => field.onChange(90)}
+                      >
+                        90d
+                      </Button>
+                      <Button
+                        size="xs"
+                        flex="1"
+                        variant="outline"
+                        borderColor="border"
+                        onClick={() => field.onChange(180)}
+                      >
+                        180d
+                      </Button>
+                      <Button
+                        size="xs"
+                        flex="1"
+                        variant="outline"
+                        borderColor="border"
+                        onClick={() => field.onChange(365)}
+                      >
+                        365d
+                      </Button>
+                    </HStack>
+                  </VStack>
+                </HStack>
+                {errors.lockPeriod && (
+                  <Text color="red.400" fontSize="sm" mt={1}>
+                    {errors.lockPeriod.message}
+                  </Text>
+                )}
+                {lockPeriod >= CAPITAL_CONFIG.params.minLockPeriodDays && (
+                  <HStack
+                    width="full"
+                    p={2}
+                    bg="blue.900/20"
+                    borderRadius="sm"
+                    border="1px solid"
+                    borderColor="blue.700/30"
+                  >
+                    <Text fontSize={"xs"} color="blue.300">
+                      Reward Multiplier: {calculateAPYBoost()}x
+                    </Text>
+                  </HStack>
+                )}
+              </VStack>
+            )}
+          />
+
+          {/* Submit Button */}
           <Button
             type="submit"
             width={"full"}
@@ -323,3 +429,4 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
  * ===========================
  */
 export default StakeForm;
+

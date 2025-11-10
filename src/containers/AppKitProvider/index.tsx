@@ -5,7 +5,26 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { wagmiAdapter } from "staking-dashboard/lib/configs/reownConfig";
 import { PropsWithChildren } from "react";
 
-const queryClient = new QueryClient();
+// Optimized QueryClient configuration to reduce unnecessary RPC calls
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Cache data for 5 minutes before considering it stale
+      staleTime: 5 * 60 * 1000,
+      // Keep unused data in cache for 10 minutes
+      gcTime: 10 * 60 * 1000,
+      // Disable aggressive refetching that causes performance issues
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+      // Disable automatic background refetching
+      refetchInterval: false,
+      // Only retry failed requests once to avoid hammering RPC
+      retry: 1,
+      retryDelay: 1000,
+    },
+  },
+});
 
 export type AppKitProviderProps = PropsWithChildren;
 

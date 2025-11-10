@@ -3,6 +3,7 @@ import { Provider } from "staking-dashboard/components/ui/provider";
 import AppKitProvider from "staking-dashboard/containers/AppKitProvider";
 import Layouts from "staking-dashboard/containers/Layouts";
 import { NetworkProvider } from "staking-dashboard/containers/NetworkProvider";
+import "./global.css";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -15,15 +16,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
-        <AppKitProvider>
-          <Provider>
-            <NetworkProvider>
-              <Layouts>{children}</Layouts>
-            </NetworkProvider>
-          </Provider>
-        </AppKitProvider>
+    <html lang="en" suppressHydrationWarning className="dark">
+      <body suppressHydrationWarning>
+        <div suppressHydrationWarning>
+          <AppKitProvider>
+            <Provider>
+              <NetworkProvider>
+                <Layouts>{children}</Layouts>
+              </NetworkProvider>
+            </Provider>
+          </AppKitProvider>
+        </div>
       </body>
     </html>
   );

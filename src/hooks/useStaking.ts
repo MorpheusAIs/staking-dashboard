@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toaster } from "staking-dashboard/components/ui/toaster";
 import {
-  formatStakingError,
-  formatTimePeriod,
   getMissingApprovalData,
   isStakeAmountInvalid,
   validateAndExtractChainConfig,
@@ -17,18 +15,16 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
+import { readContracts } from "wagmi/actions";
 import ERC20Abi from "staking-dashboard/lib/abi/ERC20.json";
 import BuilderSubnetsAbi from "staking-dashboard/lib/abi/BuilderSubnets.json";
 import BuilderSubnetsV2Abi from "staking-dashboard/lib/abi/BuilderSubnetsV2.json";
 import BuildersAbi from "staking-dashboard/lib/abi/Builders.json";
-import { Address, formatEther, isAddress, parseEther } from "viem";
+import { Address, formatEther, isAddress, parseEther, type Abi } from "viem";
 import { getChainById } from "staking-dashboard/lib/networks";
 import { arbitrumSepolia } from "viem/chains";
 import { CHAIN_ID } from "staking-dashboard/lib/configs/constants";
-import {
-  ConstructReadContractArgs,
-  UseStakingProps,
-} from "staking-dashboard/@types/useStaking";
+import { UseStakingProps } from "staking-dashboard/@types/useStaking";
 import { validatePreApproval, validatePreStake } from "./helpers";
 import { useNetwork } from "staking-dashboard/containers/NetworkProvider";
 import { getSafeWalletUrlIfApplicable } from "staking-dashboard/lib/configs/safe-wallet-detection";
@@ -66,6 +62,11 @@ export const useStaking = (args: UseStakingProps) => {
   const [needsApproval, setNeedsApproval] = useState<boolean>(false);
 
   const [isNetworkSwitching, setIsNetworkSwitching] = useState(false);
+
+  // Batched data loading state
+  const [isBatchedLoading, setIsBatchedLoading] = useState(false);
+  const [stakerData, setStakerData] = useState<unknown | undefined>(undefined);
+
   // =============== HOOKS
   const walletChainId = useChainId();
   const config = useConfig();
@@ -76,7 +77,7 @@ export const useStaking = (args: UseStakingProps) => {
   const isTestnet = networkChainId === arbitrumSepolia.id;
 
   // Helper function to show enhanced toast with Safe wallet link if applicable
-  const showEnhancedLoadingToast = async (message: string, id: string) => {
+  const showEnhancedLoadingToast = useCallback(async (message: string, id: string) => {
     if (connectedAddress && networkChainId) {
       showToast({
         description: message,
@@ -98,13 +99,14 @@ export const useStaking = (args: UseStakingProps) => {
             },
           });
         }
-      } catch (error) {
+      } catch {
         toaster.dismiss(id);
       }
     } else {
       toaster.dismiss(id);
     }
-  };
+  }, [connectedAddress, networkChainId]);
+  
   // =============== HELPERS
   // Check if approval is needed and update state
   const checkAndUpdateApprovalNeeded = useCallback(
@@ -136,12 +138,12 @@ export const useStaking = (args: UseStakingProps) => {
 
         setNeedsApproval(approvalNeeded);
         return approvalNeeded;
-      } catch (error) {
+      } catch {
         setNeedsApproval(true);
         return true; // Assume approval needed on error
       }
     },
-    [allowance, tokenAddress, contractAddress, networkChainId, isTestnet]
+    [allowance, tokenAddress, contractAddress]
   );
 
   // Helper to check if user is on correct network
@@ -163,32 +165,6 @@ export const useStaking = (args: UseStakingProps) => {
   const getAbi = useCallback(() => {
     return isTestnet ? BuilderSubnetsV2Abi : BuilderSubnetsAbi;
   }, [isTestnet]);
-
-  // Helper to construct read contract args with common parameters
-  const constructReadContractArgs = (args: ConstructReadContractArgs) => {
-    const {
-      address,
-      abi,
-      functionName,
-      enabled,
-      retry,
-      args: readArgs,
-      staleTime,
-    } = args;
-
-    return {
-      address,
-      abi,
-      functionName,
-      chainId: networkChainId,
-      args: readArgs,
-      query: {
-        enabled,
-        retry: retry || (networkChainId === CHAIN_ID.BASE ? 3 : 1), // More retries for Base network
-        staleTime,
-      },
-    };
-  };
 
   // =============== EVENT HANDLERS
   // Handle token approval before staking
@@ -249,14 +225,6 @@ export const useStaking = (args: UseStakingProps) => {
 
     try {
       const parsedAmount = parseEther(amount);
-
-      // Get network name for better logging
-      const networkType = isTestnet ? "testnet" : "mainnet";
-      const networkName = isTestnet
-        ? "Arbitrum Sepolia"
-        : networkChainId === 42161
-        ? "Arbitrum"
-        : "Base";
 
       // Both testnet (V2) and mainnet contracts use the same withdraw interface
       // withdraw(bytes32 subnetId_, uint256 amount_)
@@ -325,11 +293,6 @@ export const useStaking = (args: UseStakingProps) => {
 
       // Mainnet staking flow
       if (!isTestnet) {
-        // For mainnet using BuilderSubnets
-        // Get the network name for clearer logging
-        const networkName =
-          networkChainId === CHAIN_ID.ARBITRUM ? "Arbitrum" : "Base";
-
         // For mainnet, we need to use deposit(bytes32,uint256) from BuildersAbi
         // Mainnet uses a different contract interface: Builders.json
         return await writeStake(
@@ -438,7 +401,6 @@ export const useStaking = (args: UseStakingProps) => {
     setIsNetworkSwitching(true);
     try {
       const targetNetwork = getNetworkName(networkChainId);
-      const networkType = isTestnet ? "testnet" : "mainnet";
 
       toaster.create({
         description: `Switching to ${targetNetwork}...`,
@@ -451,7 +413,7 @@ export const useStaking = (args: UseStakingProps) => {
         description: `Switched to ${targetNetwork} successfully!`,
         type: "success",
       });
-    } catch (error) {
+    } catch {
       toaster.create({
         description: `Failed to switch to ${getNetworkName(
           networkChainId
@@ -463,127 +425,124 @@ export const useStaking = (args: UseStakingProps) => {
     }
   };
 
-  // =============== READ CONTRACT HOOKS
-  // Reads token symbol ("MOR")
-  const { data: tokenSymbolData, isFetching: isFetchingSymbol } =
-    useReadContract(
-      constructReadContractArgs({
-        address: tokenAddress,
-        abi: ERC20Abi,
-        functionName: "symbol",
-        enabled: isCorrectNetwork() && !!tokenAddress,
-      })
-    );
+  // =============== BATCHED DATA FETCHING
+  // Fetch all read-only contract data in a single multicall to reduce RPC calls from 7+ to 1
+  const fetchBatchedData = useCallback(async () => {
+    if (
+      !tokenAddress ||
+      !contractAddress ||
+      !connectedAddress ||
+      !subnetId ||
+      !isCorrectNetwork()
+    ) {
+      return;
+    }
 
-  // Reads token address from the staking contract
-  const { data: morTokenAddressData, isFetching: isFetchingToken } =
-    useReadContract(
-      constructReadContractArgs({
-        address: contractAddress,
-        abi: getAbi(),
-        functionName: "token",
-        enabled:
-          isCorrectNetwork() &&
-          !!contractAddress &&
-          networkChainId !== CHAIN_ID.BASE, // Skip for Base network
-      })
-    );
+    setIsBatchedLoading(true);
 
-  // Get staker information from the contract
-  const { data: stakerData, refetch: refetchStakerDataForUser } =
-    useReadContract({
-      address: contractAddress,
-      abi: isTestnet ? BuilderSubnetsV2Abi : BuildersAbi, // Use BuildersAbi for mainnet
-      functionName: isTestnet ? "stakers" : "usersData", // Different function name in mainnet contract
-      args:
-        subnetId && connectedAddress
-          ? [
-              isTestnet ? subnetId : connectedAddress,
-              isTestnet ? connectedAddress : subnetId,
-            ]
-          : undefined, // Different parameter order
-      query: {
-        enabled: !!subnetId && !!connectedAddress && !!contractAddress, // Only enable if all args are present
-        staleTime: 5 * 60 * 1000, // 5 minutes
-      },
-    });
+    try {
+      // Batch all contract reads into ONE multicall RPC request
+      const contracts = [
+        // 0: Token Symbol
+        {
+          address: tokenAddress,
+          abi: ERC20Abi as Abi,
+          functionName: "symbol",
+          chainId: networkChainId,
+        },
+        // 1: Token Balance
+        {
+          address: tokenAddress,
+          abi: ERC20Abi as Abi,
+          functionName: "balanceOf",
+          args: [connectedAddress],
+          chainId: networkChainId,
+        },
+        // 2: Allowance
+        {
+          address: tokenAddress,
+          abi: ERC20Abi as Abi,
+          functionName: "allowance",
+          args: [connectedAddress, contractAddress],
+          chainId: networkChainId,
+        },
+        // 3: Staker Data
+        {
+          address: contractAddress,
+          abi: (isTestnet ? BuilderSubnetsV2Abi : BuildersAbi) as Abi,
+          functionName: isTestnet ? "stakers" : "usersData",
+          args: isTestnet
+            ? [subnetId, connectedAddress]
+            : [connectedAddress, subnetId],
+          chainId: networkChainId,
+        },
+        // 4: Claimable Amount
+        {
+          address: contractAddress,
+          abi: (isTestnet ? BuilderSubnetsV2Abi : BuildersAbi) as Abi,
+          functionName: isTestnet
+            ? "getStakerRewards"
+            : "getCurrentBuilderReward",
+          args: isTestnet ? [subnetId, connectedAddress] : [subnetId],
+          chainId: networkChainId,
+        },
+      ];
 
-  // Reads user’s MOR token balance
-  const {
-    data: balanceData,
-    refetch: refetchBalance,
-    isFetching: isFetchingBalance,
-  } = useReadContract(
-    constructReadContractArgs({
-      address: tokenAddress,
-      abi: ERC20Abi,
-      functionName: "balanceOf",
-      args: [connectedAddress!],
-      enabled: isCorrectNetwork() && !!tokenAddress && !!connectedAddress,
-    })
-  );
+      const results = await readContracts(config, { contracts });
 
-  // Reads how much MOR is approved for the staking contract
-  const {
-    data: allowanceData,
-    refetch: refetchAllowance,
-    isFetching: isFetchingAllowance,
-  } = useReadContract(
-    constructReadContractArgs({
-      address: tokenAddress,
-      abi: ERC20Abi,
-      functionName: "allowance",
-      args: [connectedAddress!, contractAddress!],
-      enabled:
-        isCorrectNetwork() &&
-        !!tokenAddress &&
-        !!connectedAddress &&
-        !!contractAddress,
-    })
-  );
+      // Update all state from batched results
+      if (results[0].status === "success") {
+        setTokenSymbol(results[0].result as string);
+      }
+      if (results[1].status === "success") {
+        setTokenBalance(results[1].result as bigint);
+      }
+      if (results[2].status === "success") {
+        setAllowance(results[2].result as bigint);
+      }
+      if (results[3].status === "success") {
+        setStakerData(results[3].result);
+      }
+    } catch (error) {
+      console.error("Error fetching batched data:", error);
+    } finally {
+      setIsBatchedLoading(false);
+    }
+  }, [
+    config,
+    tokenAddress,
+    contractAddress,
+    connectedAddress,
+    subnetId,
+    networkChainId,
+    isTestnet,
+    isCorrectNetwork,
+  ]);
 
-  const {
-    data: stakerPositionData,
-    refetch: refetchStakerPositionData,
-    isFetching: isFetchingStakerPositionData,
-  } = useReadContract(
-    constructReadContractArgs({
-      address: contractAddress,
-      abi: getAbi(),
-      functionName: "stakers",
-      args: isTestnet
-        ? [subnetId!, connectedAddress!] // testnet: getStakerRewards(subnetId, stakerAddress)
-        : [connectedAddress!], // mainnet: stakers(connectedAddress)
-      enabled:
-        isCorrectNetwork() &&
-        !!contractAddress &&
-        !!subnetId &&
-        !!connectedAddress,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    })
-  );
+  // Refetch functions for manual refresh
+  const refetchStakerDataForUser = fetchBatchedData;
+  const refetchBalance = fetchBatchedData;
+  const refetchAllowance = fetchBatchedData;
+  const refetchClaimableAmount = fetchBatchedData;
 
-  // Get claimable amount - different functions for mainnet vs testnet
-  const {
-    data: claimableAmountData,
-    refetch: refetchClaimableAmount,
-    isFetching: isFetchingClaimableAmount,
-  } = useReadContract(
-    constructReadContractArgs({
-      address: contractAddress,
-      abi: isTestnet ? BuilderSubnetsV2Abi : BuildersAbi,
-      functionName: isTestnet ? "getStakerRewards" : "getCurrentBuilderReward",
-      args: isTestnet
-        ? [subnetId!, connectedAddress!] // testnet: getStakerRewards(subnetId, stakerAddress)
-        : [subnetId!], // mainnet: getCurrentBuilderReward(builderPoolId)
+  // =============== READ CONTRACT HOOKS (LEGACY - NOW USING BATCHED APPROACH)
+  // Only keep the token address read for Base network since it's predefined
+  const { data: morTokenAddressData } = useReadContract({
+    address: contractAddress,
+    abi: getAbi(),
+    functionName: "token",
+    chainId: networkChainId,
+    query: {
       enabled:
         isCorrectNetwork() &&
         !!contractAddress &&
-        !!subnetId &&
-        !!connectedAddress,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-    })
-  );
+        networkChainId !== CHAIN_ID.BASE, // Skip for Base network
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchInterval: false,
+    },
+  });
 
   // =============== WRITE CONTRACT HOOKS
   // Stake tokens
@@ -624,7 +583,7 @@ export const useStaking = (args: UseStakingProps) => {
     useWaitForTransactionReceipt({ hash: withdrawTxResult });
 
   // =============== EFFECTS
-  // This effect updates the token address, symbol, balance, and allowance states after reading from the contracts
+  // This effect updates the token address from the contract (non-Base networks only)
   useEffect(() => {
     if (
       networkChainId !== CHAIN_ID.BASE &&
@@ -633,17 +592,7 @@ export const useStaking = (args: UseStakingProps) => {
     ) {
       setTokenAddress(morTokenAddressData as Address);
     }
-
-    if (tokenSymbolData) setTokenSymbol(tokenSymbolData as string);
-    if (balanceData !== undefined) setTokenBalance(balanceData as bigint);
-    if (allowanceData !== undefined) setAllowance(allowanceData as bigint);
-  }, [
-    morTokenAddressData,
-    tokenSymbolData,
-    balanceData,
-    allowanceData,
-    networkChainId,
-  ]);
+  }, [morTokenAddressData, networkChainId]);
 
   // This effect set the initial contract and token addresses based on the network config defined in lib/networks.ts
   useEffect(() => {
@@ -670,12 +619,32 @@ export const useStaking = (args: UseStakingProps) => {
       setContractAddress(result.builders);
       setTokenAddress(result.token);
     }
-  }, [networkChainId, isTestnet, getChainById]);
+  }, [networkChainId, isTestnet]);
+
+  // Trigger batched data fetch when addresses are ready
+  useEffect(() => {
+    if (
+      tokenAddress &&
+      contractAddress &&
+      connectedAddress &&
+      subnetId &&
+      isCorrectNetwork()
+    ) {
+      fetchBatchedData();
+    }
+  }, [
+    tokenAddress,
+    contractAddress,
+    connectedAddress,
+    subnetId,
+    isCorrectNetwork,
+    fetchBatchedData,
+  ]);
 
   // Handle Approval Transaction Notifications
   useEffect(() => {
     if (isApprovePending) {
-      showEnhancedLoadingToast(
+      void showEnhancedLoadingToast(
         "Confirm approval in wallet...",
         "approve-toast"
       );
@@ -705,6 +674,10 @@ export const useStaking = (args: UseStakingProps) => {
       };
 
       refreshAllowanceWithDelay();
+      // Trigger MOR balance refresh across all chains
+      if (typeof window !== 'undefined' && window.refreshMORBalances) {
+        window.refreshMORBalances();
+      }
       resetApproveContract();
     }
     if (approveError) {
@@ -731,12 +704,13 @@ export const useStaking = (args: UseStakingProps) => {
     approveError,
     resetApproveContract,
     refetchAllowance,
+    showEnhancedLoadingToast,
   ]);
 
   // Handle Staking Transaction Notifications
   useEffect(() => {
     if (isStakePending) {
-      showEnhancedLoadingToast("Confirm staking in wallet...", "stake-toast");
+      void showEnhancedLoadingToast("Confirm staking in wallet...", "stake-toast");
     }
     if (isStakeTxSuccess) {
       showToast({
@@ -764,6 +738,12 @@ export const useStaking = (args: UseStakingProps) => {
       // Refresh balance and allowance after staking
       refetchBalance();
       refetchAllowance();
+      refetchStakerDataForUser();
+      refetchClaimableAmount();
+      // Trigger MOR balance refresh across all chains
+      if (typeof window !== 'undefined' && window.refreshMORBalances) {
+        window.refreshMORBalances();
+      }
       if (onTxSuccess) {
         onTxSuccess();
       }
@@ -795,6 +775,9 @@ export const useStaking = (args: UseStakingProps) => {
     onTxSuccess,
     refetchBalance,
     refetchAllowance,
+    refetchStakerDataForUser,
+    refetchClaimableAmount,
+    showEnhancedLoadingToast,
     networkChainId,
     isTestnet,
   ]);
@@ -802,7 +785,7 @@ export const useStaking = (args: UseStakingProps) => {
   // Handle Withdrawal Transaction Notifications
   useEffect(() => {
     if (isWithdrawPending) {
-      showEnhancedLoadingToast(
+      void showEnhancedLoadingToast(
         "Confirm withdrawal in wallet...",
         "withdraw-tx"
       );
@@ -832,6 +815,12 @@ export const useStaking = (args: UseStakingProps) => {
       resetWithdrawContract();
       // Refresh balance after withdrawal
       refetchBalance();
+      refetchStakerDataForUser();
+      refetchClaimableAmount();
+      // Trigger MOR balance refresh across all chains
+      if (typeof window !== 'undefined' && window.refreshMORBalances) {
+        window.refreshMORBalances();
+      }
       if (onTxSuccess) {
         onTxSuccess();
       }
@@ -862,6 +851,9 @@ export const useStaking = (args: UseStakingProps) => {
     resetWithdrawContract,
     onTxSuccess,
     refetchBalance,
+    refetchStakerDataForUser,
+    refetchClaimableAmount,
+    showEnhancedLoadingToast,
     networkChainId,
     isTestnet,
   ]);
@@ -870,13 +862,8 @@ export const useStaking = (args: UseStakingProps) => {
   // 2 condition flags to ensure correct loading states, first for writing transactions, second for waiting for them to be mined
   const isStaking = isStakePending || isStakeTxLoading;
   const isApproving = isApprovePending || isApproveTxLoading;
-  // Loading state for all read contract data
-  const isLoadingData =
-    isFetchingToken ||
-    isFetchingSymbol ||
-    isFetchingBalance ||
-    isFetchingAllowance ||
-    isFetchingClaimableAmount;
+  // Loading state for all read contract data - now using batched loading
+  const isLoadingData = isBatchedLoading;
 
   // @TODO withdraw
   const isAnyTxPending = isApproving || isStaking;
@@ -901,7 +888,6 @@ export const useStaking = (args: UseStakingProps) => {
     onHandleStaking,
     onHandleWithdraw,
     isCorrectNetwork,
-    stakerPositionData,
     onHandleNetworkSwitch,
     refetchStakerDataForUser,
     checkAndUpdateApprovalNeeded,

@@ -9,7 +9,7 @@ export type UseStakingProps = {
 
 export type ConstructReadContractArgs = {
   address?: `0x${string}`;
-  abi: any;
+  abi: unknown;
   functionName: string;
   enabled: boolean;
   retry?: number;

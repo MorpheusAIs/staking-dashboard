@@ -3,6 +3,9 @@ import { CHAIN_ID } from "./configs/constants";
 
 // MOR token addresses by chain ID - derived from networks.ts for single source of truth
 export const morTokenContracts: Record<number, string> = {
+  // Mainnet
+  [CHAIN_ID.MAINNET]:
+    mainnetChains.mainnet.contracts?.morToken?.address || "",
   // Arbitrum
   [CHAIN_ID.ARBITRUM]:
     mainnetChains.arbitrum.contracts?.morToken?.address || "",

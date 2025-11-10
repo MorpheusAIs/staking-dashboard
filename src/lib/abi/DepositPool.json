@@ -1,0 +1,161 @@
+[
+  {
+    "inputs": [
+      {
+        "name": "rewardPoolIndex_",
+        "type": "uint256"
+      },
+      {
+        "name": "amount_",
+        "type": "uint256"
+      },
+      {
+        "name": "claimLockEnd_",
+        "type": "uint128"
+      },
+      {
+        "name": "referrer_",
+        "type": "address"
+      }
+    ],
+    "name": "stake",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "rewardPoolIndex_",
+        "type": "uint256"
+      },
+      {
+        "name": "amount_",
+        "type": "uint256"
+      }
+    ],
+    "name": "withdraw",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "rewardPoolIndex_",
+        "type": "uint256"
+      },
+      {
+        "name": "user_",
+        "type": "address"
+      }
+    ],
+    "name": "claim",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "rewardPoolIndex_",
+        "type": "uint256"
+      },
+      {
+        "name": "lockEndTimestamp_",
+        "type": "uint128"
+      }
+    ],
+    "name": "lockClaim",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "user_",
+        "type": "address"
+      },
+      {
+        "name": "rewardPoolIndex_",
+        "type": "uint256"
+      }
+    ],
+    "name": "usersData",
+    "outputs": [
+      {
+        "components": [
+          {
+            "name": "deposited",
+            "type": "uint256"
+          },
+          {
+            "name": "rate",
+            "type": "uint256"
+          },
+          {
+            "name": "pendingRewards",
+            "type": "uint256"
+          },
+          {
+            "name": "claimLockStart",
+            "type": "uint128"
+          },
+          {
+            "name": "claimLockEnd",
+            "type": "uint128"
+          }
+        ],
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "rewardPoolIndex_",
+        "type": "uint256"
+      }
+    ],
+    "name": "rewardPoolsData",
+    "outputs": [
+      {
+        "components": [
+          {
+            "name": "totalDeposited",
+            "type": "uint256"
+          },
+          {
+            "name": "rate",
+            "type": "uint256"
+          },
+          {
+            "name": "lastUpdate",
+            "type": "uint128"
+          }
+        ],
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalDepositedInPublicPools",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]
+

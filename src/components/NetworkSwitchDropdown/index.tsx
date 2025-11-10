@@ -8,12 +8,24 @@ import { IoChevronDown } from "react-icons/io5";
 import { CiGlobe } from "react-icons/ci";
 import { networks } from "staking-dashboard/lib/configs/reownConfig";
 import { AppKitNetwork } from "@reown/appkit/networks";
+import { useRouteNetwork } from "staking-dashboard/hooks/useRouteNetwork";
 
 export const NetworkDropdown = () => {
   const chainId = useChainId();
-  const { switchChain, isPending } = useSwitchChain();
+  const { switchChain } = useSwitchChain();
+  const { allowedNetworks, isCapitalRoute } = useRouteNetwork();
+
+  // Hide dropdown on capital route (only one network available)
+  if (isCapitalRoute) {
+    return null;
+  }
 
   const current = networks.find((n) => n.id === chainId) || arbitrum;
+
+  // Filter networks to only show allowed ones
+  const filteredNetworks = networks.filter((n) =>
+    allowedNetworks.some((allowed) => allowed.id === n.id)
+  );
 
   const iconMap: Record<AppKitNetwork["id"], string> = {
     [arbitrum.id]: "/icons/arbitrum-arb-logo.svg",
@@ -67,14 +79,14 @@ export const NetworkDropdown = () => {
       <Menu.Positioner>
         <Menu.Content
           border="1px solid"
-          borderColor="gray.700"
-          bg="gray.800"
-          color="white"
+          borderColor="border"
+          bg="menu.bg"
+          color="menu.text"
           borderRadius="md"
           py={3}
           minW="160px"
         >
-          {networks.map((chain: AppKitNetwork) => {
+          {filteredNetworks.map((chain: AppKitNetwork) => {
             const icon = iconMap?.[chain.id];
             return (
               <Menu.Item
@@ -83,9 +95,10 @@ export const NetworkDropdown = () => {
                 value={chain.id.toString()}
                 onClick={() => switchChain({ chainId: Number(chain.id) })}
                 cursor="pointer"
-                _hover={{ bg: "gray.700" }}
+                color="menu.text"
+                _hover={{ bg: "menu.hover" }}
               >
-                <HStack gap={3}>
+                <HStack gap={3} color="menu.text">
                   {icon ? (
                     <Image
                       src={icon}
@@ -94,7 +107,9 @@ export const NetworkDropdown = () => {
                       borderRadius="full"
                     />
                   ) : (
-                    <CiGlobe size={18} />
+                    <Box as="span" color="menu.text">
+                      <CiGlobe size={18} />
+                    </Box>
                   )}
                   <Text>{chain.name}</Text>
                 </HStack>

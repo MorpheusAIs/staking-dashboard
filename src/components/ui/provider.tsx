@@ -1,13 +1,19 @@
 "use client";
 
 import { ChakraProvider } from "@chakra-ui/react";
-import { ColorModeProvider, type ColorModeProviderProps } from "./color-mode";
+import { ColorModeProvider } from "./color-mode";
 import { system } from "staking-dashboard/lib/configs/theme";
+import type { ThemeProviderProps } from "next-themes";
 
-export function Provider(props: ColorModeProviderProps) {
+export function Provider(props: ThemeProviderProps) {
   return (
     <ChakraProvider value={system}>
-      <ColorModeProvider {...props} />
+      <ColorModeProvider 
+        forcedTheme="dark" 
+        defaultTheme="dark"
+        enableSystem={false}
+        {...props} 
+      />
     </ChakraProvider>
   );
 }

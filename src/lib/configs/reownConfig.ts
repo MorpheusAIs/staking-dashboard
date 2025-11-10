@@ -3,7 +3,6 @@ import {
   mainnet,
   base,
   arbitrumSepolia,
-  sepolia,
 } from "@reown/appkit/networks";
 
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
@@ -19,7 +18,7 @@ const metadata = {
   icons: ["https://morpheus.reown.com/favicon.ico"],
 };
 
-const networks: CreateAppKit["networks"] = [arbitrum, base, arbitrumSepolia];
+const networks: CreateAppKit["networks"] = [mainnet, arbitrum, base, arbitrumSepolia];
 
 const wagmiAdapter = new WagmiAdapter({
   storage: createStorage({ storage: cookieStorage }),
