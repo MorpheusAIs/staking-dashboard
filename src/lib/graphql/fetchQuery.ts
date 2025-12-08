@@ -34,3 +34,21 @@ export async function fetchQuery({
 
   return json.data;
 }
+
+export async function fetchWithCache(key: string, url: string, ttl = 60000) {
+  const cached = localStorage.getItem(key);
+
+  if (cached) {
+    const parsed = JSON.parse(cached);
+    if (Date.now() - parsed.timestamp < ttl) {
+      return parsed.data;
+    }
+  }
+
+  const response = await fetch(url);
+  const data = await response.json();
+
+  localStorage.setItem(key, JSON.stringify({ timestamp: Date.now(), data }));
+
+  return data;
+}

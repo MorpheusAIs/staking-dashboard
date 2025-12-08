@@ -91,10 +91,10 @@ const config = defineConfig({
         secondaryTextHover: {
           value: "#E0FFE6",
         },
-        textPrimary: {
+        primaryTextValue: {
           value: "#FFFFFF",
         },
-        textSecondary: {
+        secondaryTextValue: {
           value: "#6B7280",
         },
         background: {
@@ -126,10 +126,10 @@ const config = defineConfig({
           value: "{colors.boxBackground}",
         },
         text: {
-          value: "{colors.textPrimary}",
+          value: "{colors.primaryTextValue}",
         },
-        textSecondary: {
-          value: "{colors.textSecondary}",
+        secondaryText: {
+          value: "{colors.secondaryTextValue}",
         },
         border: {
           value: "{colors.borderColor}",

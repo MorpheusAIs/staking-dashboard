@@ -11,8 +11,10 @@ export const SUBNET_CONFIG = {
   // lockPeriodInSeconds: 5 * 60, // 5 minutes
   minDeposit: 0.1,
   supportedNetwork: [
-    CHAIN_ID.ARBITRUM_SEPOLIA,
+    // CHAIN_ID.ARBITRUM_SEPOLIA,
     CHAIN_ID.SEPOLIA,
     CHAIN_ID.ARBITRUM,
   ],
+  referralAddress:
+    "0xf3199e9E17c703fC8f6b226d5a3Ad25c5588a370" as `0x${string}`,
 };

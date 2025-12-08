@@ -48,7 +48,7 @@ export const StakingPosition: React.FC<StakingPositionProps> = (props) => {
         alignItems={"center"}
         gap={8}
       >
-        <Text color="textSecondary">
+        <Text color="secondaryText">
           Connect your wallet to vew your staking position
         </Text>
         <WalletConnectButton enableAddress={false} />
@@ -65,7 +65,7 @@ export const StakingPosition: React.FC<StakingPositionProps> = (props) => {
         alignItems={"center"}
         gap={2}
       >
-        <Text color="textSecondary">
+        <Text color="secondaryText">
           You do not have an active staking position.
         </Text>
       </VStack>

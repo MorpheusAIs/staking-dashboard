@@ -7,9 +7,9 @@ import {
   getL1Chains,
   getL2Chains,
 } from "staking-dashboard/lib/networks";
-import { NetworkEnvironment } from "staking-dashboard/@types/common";
+import { NetworkEnvironment } from "staking-dashboard/lib/configs/asset";
 
-interface NetworkContextType {
+type NetworkContextType = {
   environment: NetworkEnvironment;
   setEnvironment: (env: NetworkEnvironment) => void;
   isMainnet: boolean;
@@ -23,7 +23,7 @@ interface NetworkContextType {
   l2Chains: ReturnType<typeof getL2Chains>;
   supportedChains: ReturnType<typeof getChains>;
   isNetworkSwitching: boolean;
-}
+};
 
 const NetworkContext = createContext<NetworkContextType | undefined>(undefined);
 

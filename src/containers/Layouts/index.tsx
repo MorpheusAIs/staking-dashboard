@@ -55,7 +55,7 @@ export const Layouts: React.FC<LayoutsProps> = (props) => {
       </Stack>
       <Text
         fontSize="sm"
-        color="textSecondary"
+        color="secondaryText"
         textAlign="center"
         py={4}
         zIndex={1}

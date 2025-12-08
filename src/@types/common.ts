@@ -52,4 +52,8 @@ export type TSUBNETCONFIG = {
   lockPeriodInSeconds: number;
 };
 
-export type NetworkEnvironment = "mainnet" | "testnet";
+export type IconProps = {
+  className?: string;
+  size?: number | string;
+  style?: React.CSSProperties;
+};

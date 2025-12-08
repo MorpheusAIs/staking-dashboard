@@ -3,11 +3,11 @@ import { VStack, HStack, Text, Alert, Button, Stack } from "@chakra-ui/react";
 import StakeForm from "./StakeForm";
 import WithdrawForm from "./WithdrawForm";
 import StakingPosition from "./StakingPosition";
-import { useStaking } from "staking-dashboard/hooks/useStaking";
+import { useStaking } from "staking-dashboard/hooks/useSubnetStaking";
 import { SUBNET_CONFIG } from "staking-dashboard/lib/configs/subnet.config";
-import { useChainId } from "wagmi";
+import { useChainId, useSwitchChain } from "wagmi";
 import { useEffect, useRef, useState } from "react";
-import { arbitrumSepolia } from "viem/chains";
+import { arbitrum, arbitrumSepolia, mainnet } from "viem/chains";
 import { formatEther } from "viem";
 import { NetworkDropdown } from "staking-dashboard/components/NetworkSwitchDropdown";
 import SubnetStats from "../SubnetStats";
@@ -71,6 +71,7 @@ export const SubnetStaking = () => {
     },
     lockPeriodInSeconds: SUBNET_CONFIG.lockPeriodInSeconds,
   });
+  const { switchChain } = useSwitchChain();
 
   // =============== EVENTS
   const onToggleAlert = (message: string | null) => {
@@ -82,6 +83,12 @@ export const SubnetStaking = () => {
   useEffect(() => {
     refreshApprovalRef.current = checkAndUpdateApprovalNeeded;
   }, [checkAndUpdateApprovalNeeded]);
+
+  useEffect(() => {
+    if (!isTestnet && chainId === mainnet.id) {
+      switchChain({ chainId: arbitrum.id });
+    }
+  }, []);
 
   // =============== VARIABLES
   const formattedTokenBalance = tokenBalance

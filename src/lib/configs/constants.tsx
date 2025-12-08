@@ -4,6 +4,7 @@ import { FaTelegramPlane } from "react-icons/fa";
 import { CiMail } from "react-icons/ci";
 import { FaXTwitter } from "react-icons/fa6";
 import { arbitrum, arbitrumSepolia, base, sepolia } from "wagmi/chains";
+import { ContractAddresses } from "staking-dashboard/@types/common";
 
 export const SideBarItems = [
   {
@@ -98,4 +99,15 @@ export const stakingErrorMap: {
     description:
       "Approval would exceed gas limits. The token contract may be non-standard.",
   },
+};
+
+export const depositPoolMapping: Partial<
+  Record<string, keyof ContractAddresses>
+> = {
+  stETH: "stETHDepositPool",
+  LINK: "linkDepositPool",
+  USDC: "usdcDepositPool",
+  USDT: "usdtDepositPool",
+  wBTC: "wbtcDepositPool",
+  wETH: "wethDepositPool",
 };

@@ -11,7 +11,7 @@ import { AppKitNetwork } from "@reown/appkit/networks";
 
 export const NetworkDropdown = () => {
   const chainId = useChainId();
-  const { switchChain, isPending } = useSwitchChain();
+  const { switchChain } = useSwitchChain();
 
   const current = networks.find((n) => n.id === chainId) || arbitrum;
 

@@ -28,7 +28,7 @@ import { CHAIN_ID } from "staking-dashboard/lib/configs/constants";
 import {
   ConstructReadContractArgs,
   UseStakingProps,
-} from "staking-dashboard/@types/useStaking";
+} from "staking-dashboard/@types/useSubnetStaking";
 import { validatePreApproval, validatePreStake } from "./helpers";
 import { useNetwork } from "staking-dashboard/containers/NetworkProvider";
 import { getSafeWalletUrlIfApplicable } from "staking-dashboard/lib/configs/safe-wallet-detection";
