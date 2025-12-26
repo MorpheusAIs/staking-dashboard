@@ -39,6 +39,7 @@ export type SubnetStatsProps = {
  */
 export const SubnetStats: React.FC<SubnetStatsProps> = (props) => {
   const { isTestnet, tokenSymbol } = props;
+
   // =============== VARIABLES
   const projectID = SUBNET_CONFIG.subnetID;
   const chain = useChainId();

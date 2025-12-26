@@ -17,6 +17,8 @@ import { formatPowerFactorPrecise } from "staking-dashboard/lib/power-factor-uti
 // Import ABIs
 import ERC20Abi from "staking-dashboard/lib/abi/ERC20.json";
 import DepositPoolAbi from "staking-dashboard/lib/abi/DepositPool.json";
+import { QueryObserverResult } from "@tanstack/react-query";
+import { ReadContractErrorType } from "wagmi/actions";
 
 const V2_REWARD_POOL_INDEX = BigInt(0);
 
@@ -55,7 +57,9 @@ export type AssetContractData = {
   refetch: {
     balance: () => void;
     allowance: () => void;
-    userData: () => void;
+    userData: () => Promise<
+      QueryObserverResult<unknown, ReadContractErrorType>
+    >;
     rewards: () => void;
     multiplier: () => void;
     totalDeposited: () => void;

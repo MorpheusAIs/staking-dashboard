@@ -17,14 +17,29 @@ import { formatUnits, zeroAddress } from "viem";
 type UseDailyEmissionsParams = {
   userDeposited: bigint | undefined;
   assetSymbol: AssetSymbol;
-  poolIndex?: number; // Optional pool index override
-  totalUSDValueAllPools?: number; // Total USD value across all pools
-  assetPrice?: number; // Price of this specific asset
+  poolIndex?: number;
+  totalUSDValueAllPools?: number;
+  assetPrice?: number;
 };
 
 type DailyEmissionsResult = {
   emissions: number;
   isLoading: boolean;
+};
+
+// Get DepositPool contract address for total stake calculation
+const getDepositPoolContractKey = (
+  symbol: AssetSymbol
+): keyof ContractAddresses | null => {
+  const mapping: Record<AssetSymbol, keyof ContractAddresses> = {
+    stETH: "stETHDepositPool",
+    LINK: "linkDepositPool",
+    USDC: "usdcDepositPool",
+    USDT: "usdtDepositPool",
+    wBTC: "wbtcDepositPool",
+    wETH: "wethDepositPool",
+  };
+  return mapping[symbol] || null;
 };
 
 /**
@@ -41,28 +56,12 @@ export function useDailyEmissions(
     assetPrice,
   } = args;
 
-  // =============== HELPER
-  // Get DepositPool contract address for total stake calculation
-  const getDepositPoolContractKey = (
-    symbol: AssetSymbol
-  ): keyof ContractAddresses | null => {
-    const mapping: Record<AssetSymbol, keyof ContractAddresses> = {
-      stETH: "stETHDepositPool",
-      LINK: "linkDepositPool",
-      USDC: "usdcDepositPool",
-      USDT: "usdtDepositPool",
-      wBTC: "wbtcDepositPool",
-      wETH: "wethDepositPool",
-    };
-    return mapping[symbol] || null;
-  };
-
   // =============== VARIABLES
-
   // Get asset configuration for correct decimal handling
   const assetConfig = getAssetConfig(assetSymbol, "mainnet");
   const assetDecimals = assetConfig?.metadata.decimals || 18;
   const l1ChainId = mainnetChains.mainnet.id;
+
   // Use provided pool index or default to 0 for Capital pool
   const rewardPoolIndex = BigInt(poolIndex ?? 0);
   const now = Math.floor(Date.now() / 1000);
@@ -160,14 +159,6 @@ export function useDailyEmissions(
       },
     });
 
-  // =============== VARIABLES
-  // Early return if contract data not available
-  const isLoading =
-    isLoadingPoolRewards ||
-    isLoadingTotalStaked ||
-    isLoadingPoolExists ||
-    isLoadingAllocatedRewards;
-
   // =============== LOGIC
   const computeDailyEmissions = () => {
     // Early return if user has no stake
@@ -176,7 +167,7 @@ export function useDailyEmissions(
     }
 
     // Early return if essential data missing
-    if (!dailyPoolRewards || !totalStaked || isLoading) return 0;
+    if (!dailyPoolRewards || !totalStaked || isLoading || !poolExists) return 0;
 
     // Early return if data types incorrect
     if (typeof dailyPoolRewards !== "bigint" || typeof totalStaked !== "bigint")
@@ -184,10 +175,13 @@ export function useDailyEmissions(
 
     // Total MOR rewards for 24h period (MOR always 18 decimals)
     const totalDailyRewards = Number(formatUnits(dailyPoolRewards, 18));
+
     // Total staked in this pool
     const totalStake = Number(formatUnits(totalStaked, assetDecimals));
+
     // User's stake
     const userStake = Number(formatUnits(userDeposited, assetDecimals));
+
     // Historical MOR allocation to this pool
     const poolAllocatedRewards =
       allocatedRewards && typeof allocatedRewards === "bigint"
@@ -216,14 +210,6 @@ export function useDailyEmissions(
 
       // Calculate pool's proportional share based on USD value
       poolUSDShare = poolUSDValue / totalUSDValueAllPools;
-
-      console.log(`💰 [${assetSymbol}] USD-based pool calculation:`, {
-        totalStakeInPool: totalStake,
-        assetPrice: assetPrice,
-        poolUSDValue: poolUSDValue.toFixed(2),
-        totalUSDValueAllPools: totalUSDValueAllPools.toFixed(2),
-        poolUSDShare: (poolUSDShare * 100).toFixed(4) + "%",
-      });
     } else {
       // Fallback: Use historical allocation data if USD values not available
       const estimatedTotalHistoricalRewards = Math.max(
@@ -240,17 +226,6 @@ export function useDailyEmissions(
       } else {
         poolUSDShare = 0.000001; // Minimal fallback share
       }
-
-      console.log(`📊 [${assetSymbol}] Fallback to historical allocation:`, {
-        reason: !totalUSDValueAllPools
-          ? "No total USD value"
-          : !assetPrice
-          ? "No asset price"
-          : "Unknown",
-        poolAllocatedRewards: poolAllocatedRewards.toFixed(2),
-        estimatedTotal: estimatedTotalHistoricalRewards.toFixed(2),
-        fallbackShare: (poolUSDShare * 100).toFixed(6) + "%",
-      });
     }
 
     // User's share within the pool (stake-based)
@@ -260,31 +235,20 @@ export function useDailyEmissions(
     const userDailyEmissions =
       totalDailyRewards * poolUSDShare * userShareOfPool;
 
-    console.log(`📊 [${assetSymbol}] USD-BASED Daily emissions:`, {
-      userStake,
-      totalStakeInPool: totalStake,
-      userShareOfPool: (userShareOfPool * 100).toFixed(6) + "%",
-      poolUSDShare: (poolUSDShare * 100).toFixed(6) + "%",
-      totalDailyRewards: totalDailyRewards.toFixed(2),
-      userDailyEmissions: userDailyEmissions.toFixed(6),
-      period: "24 hours",
-      rewardPoolIndex: rewardPoolIndex.toString(),
-      calculation: "USD-based: totalRewards × poolUSDShare × userShareOfPool",
-      method:
-        totalUSDValueAllPools && assetPrice
-          ? "USD Value Proportional"
-          : "Historical Allocation Fallback",
-    });
-
     return Math.max(0, userDailyEmissions);
   };
 
+  // =============== VARIABLES
+  // Early return if contract data not available
+  const isLoading =
+    isLoadingPoolRewards ||
+    isLoadingTotalStaked ||
+    isLoadingPoolExists ||
+    isLoadingAllocatedRewards;
+
+  // =============== RETURN
   return {
+    isLoading,
     emissions: computeDailyEmissions(),
-    isLoading:
-      isLoadingPoolRewards ||
-      isLoadingTotalStaked ||
-      isLoadingPoolExists ||
-      isLoadingAllocatedRewards,
   };
 }

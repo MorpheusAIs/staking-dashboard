@@ -46,3 +46,12 @@ export type BuildUserAssetReturn = {
   canClaim: boolean;
   canWithdraw: boolean;
 };
+
+export type Metrics = {
+  stakedValue: string;
+  dailyEmissionsEarned: string;
+  lifetimeEmissionsEarned: string;
+  totalAvailableToClaim: string;
+};
+
+export type AssetPriceMap = Partial<Record<AssetSymbol, number>>;

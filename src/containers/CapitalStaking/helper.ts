@@ -7,7 +7,67 @@ import {
 import { parseUnits } from "viem";
 import * as yup from "yup";
 
-export const schemaValidation = ({
+import { isAddress } from "viem";
+import { GetEnsAddressReturnType } from "wagmi/actions";
+import { AssetSymbol } from "staking-dashboard/lib/configs/asset";
+import {
+  BuildUserAssetArgs,
+  BuildUserAssetReturn,
+  MinimalAssetData,
+} from "./type";
+import { parseDepositAmount } from "staking-dashboard/lib/helpers";
+
+export const withdrawSchemaValidation = ({
+  canWithdraw,
+  currentAsset,
+}: {
+  canWithdraw: boolean;
+  currentAsset: {
+    config: {
+      decimals: number;
+    };
+    userDeposited: bigint;
+  };
+}) => {
+  return yup.object({
+    withdrawAmount: yup
+      .string()
+      .required("Withdraw amount is required")
+      .matches(/^\d*\.?\d*$/, "Enter a valid number")
+      .test("is-valid-number", "Enter a valid number", (value) => {
+        if (value === undefined || value === null) return false;
+        const num = parseFloat(value);
+        return !isNaN(num);
+      })
+      .test("is-positive", "Must be greater than 0", (value) => {
+        const num = parseFloat(value || "");
+        return !isNaN(num) && num > 0;
+      })
+      .test("canWithdraw", "Withdrawals are currently locked", function () {
+        if (!canWithdraw) {
+          return this.createError({
+            message: "Withdrawals are currently locked for this asset.",
+          });
+        }
+        return true;
+      })
+      .test(
+        "max-deposit",
+        "Withdraw amount exceeds deposited amount",
+        function (value) {
+          if (!value) return true;
+          const amountBigInt = parseUnits(
+            value.toString(),
+            currentAsset.config.decimals
+          );
+
+          return amountBigInt <= currentAsset.userDeposited;
+        }
+      ),
+  });
+};
+
+export const depositSchemaValidation = ({
   currentAsset,
   selectedAsset,
 }: {
@@ -86,31 +146,30 @@ export const schemaValidation = ({
           }
 
           return true;
+        })
+        .test("lock-period-error", "Invalid lock period", function (value) {
+          const { unit, duration } = this.parent;
+          const path = this.path;
+
+          const currentTimestamp = Math.floor(Date.now() / 1000);
+          const lockDurationSeconds = durationToSeconds(duration, unit);
+          const proposedClaimLockEnd =
+            BigInt(currentTimestamp) + lockDurationSeconds;
+          const existingLockEnd = currentAsset.claimUnlockTimestamp;
+          if (
+            existingLockEnd &&
+            existingLockEnd > BigInt(0) &&
+            proposedClaimLockEnd < existingLockEnd
+          ) {
+            const existingDate = new Date(Number(existingLockEnd) * 1000);
+            return this.createError({
+              path,
+              message: `Lock period too short. Your existing ${selectedAsset} position is locked until ${existingDate.toLocaleDateString()}. New deposits must have a lock period that ends on or after this date.`,
+            });
+          }
+
+          return true;
         }),
-      // @TODO uncomment
-      // .test("lock-period-error", "Invalid lock period", function (value) {
-      //   const { unit, duration } = this.parent;
-      //   const path = this.path;
-
-      //   const currentTimestamp = Math.floor(Date.now() / 1000);
-      //   const lockDurationSeconds = durationToSeconds(duration, unit);
-      //   const proposedClaimLockEnd =
-      //     BigInt(currentTimestamp) + lockDurationSeconds;
-      //   const existingLockEnd = currentAsset.claimUnlockTimestamp;
-      //   if (
-      //     existingLockEnd &&
-      //     existingLockEnd > BigInt(0) &&
-      //     proposedClaimLockEnd < existingLockEnd
-      //   ) {
-      //     const existingDate = new Date(Number(existingLockEnd) * 1000);
-      //     return this.createError({
-      //       path,
-      //       message: `Lock period too short. Your existing ${selectedAsset} position is locked until ${existingDate.toLocaleDateString()}. New deposits must have a lock period that ends on or after this date.`,
-      //     });
-      //   }
-
-      //   return true; // valid
-      // }),
       unit: yup
         .mixed<"Days" | "Months" | "Years">()
         .oneOf(["Days", "Months", "Years"])
@@ -118,16 +177,6 @@ export const schemaValidation = ({
     }),
   });
 };
-
-import { isAddress } from "viem";
-import { GetEnsAddressReturnType } from "wagmi/actions";
-import { AssetSymbol } from "staking-dashboard/lib/configs/asset";
-import {
-  BuildUserAssetArgs,
-  BuildUserAssetReturn,
-  MinimalAssetData,
-} from "./type";
-import { parseDepositAmount } from "staking-dashboard/lib/helpers";
 
 export interface EnsValidationResult {
   isValid: boolean;
@@ -167,14 +216,14 @@ export function validateReferrerAddressHelper(
         isValid: false,
         error: `ENS resolution failed: ${
           ensError.message || "Unknown ENS error"
-        }`,
+        }. Please contact subnet administrator.`,
       };
     }
     if (isEnsName && !resolvedAddress && !isResolvingEns) {
       return {
         isValid: false,
         error:
-          "ENS name could not be resolved. Please check the name or try again.",
+          "ENS name could not be resolved. Please check the name or try again or contact subnet administrator.",
       };
     }
     if (resolvedAddress) {
@@ -185,10 +234,18 @@ export function validateReferrerAddressHelper(
 
   // Ethereum address format check
   if (!ETH_ADDRESS_REGEX.test(trimmedAddress)) {
-    return { isValid: false, error: "Invalid Ethereum address format" };
+    return {
+      isValid: false,
+      error:
+        "Invalid Ethereum address format. Please contact subnet administrator.",
+    };
   }
   if (!isAddress(trimmedAddress)) {
-    return { isValid: false, error: "Invalid Ethereum address checksum" };
+    return {
+      isValid: false,
+      error:
+        "Invalid Ethereum address checksum. Please contact subnet administrator.",
+    };
   }
 
   return { isValid: true, error: null };
@@ -261,3 +318,103 @@ export function formatNumber(value: number): string {
       })
     : value.toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
+
+// Helper to check if a string looks numeric (allows commas, decimals)
+const isNumericString = (value: string | number): boolean => {
+  if (typeof value === "number") return true;
+  if (typeof value !== "string") return false;
+  // Remove commas, check if it's a valid number (potentially with decimals)
+  return !isNaN(parseFloat(value.replace(/,/g, "")));
+};
+
+// Format number values with decimals only when less than 1
+const formatValue = (
+  value: string | number,
+  autoFormatNumbers: boolean
+): string | number => {
+  if (!autoFormatNumbers) return value;
+
+  // Only process numeric values
+  const numValue =
+    typeof value === "string" ? parseFloat(value.replace(/,/g, "")) : value;
+
+  // Check if it's a valid number
+  if (isNaN(numValue)) return value;
+
+  // Apply the formatting logic using the utility function
+  return formatNumber(numValue);
+};
+
+const getNumericValue = (value: string | number): number => {
+  return typeof value === "string"
+    ? parseFloat(value.replace(/,/g, ""))
+    : value;
+};
+
+export const formatMetricsValue = (
+  value: string | number,
+  autoFormatNumbers: boolean
+) => {
+  if (!value) return "-";
+  if (isNumericString(value)) {
+    return getNumericValue(formatValue(value, autoFormatNumbers));
+  }
+  return formatValue(value, autoFormatNumbers);
+};
+
+/**
+ * Format staked amounts with conditional decimals based on asset type
+ * USDC, USDT: always 2 decimals
+ * wETH, wBTC, stETH: 4 decimals if < 0.01, 2 decimals if >= 0.01
+ */
+export const formatStakedAmount = (
+  amount: number,
+  assetSymbol?: AssetSymbol
+): string => {
+  if (assetSymbol === "USDC" || assetSymbol === "USDT") {
+    return amount.toFixed(2);
+  }
+
+  if (
+    assetSymbol === "wETH" ||
+    assetSymbol === "wBTC" ||
+    assetSymbol === "stETH"
+  ) {
+    return amount < 0.01 ? amount.toFixed(4) : amount.toFixed(2);
+  }
+
+  // Default to 1 decimal for other assets
+  return amount.toFixed(1);
+};
+
+/**
+ * Format asset amounts with conditional decimals based on asset type and remove trailing zeros
+ * USDC, USDT: always 2 decimals (but trailing zeros removed)
+ * wETH, wBTC, stETH: 3 decimals if < 1, 2 decimals if >= 1 (trailing zeros removed)
+ */
+export const formatAssetAmount = (
+  amount: number,
+  assetSymbol?: AssetSymbol
+): string => {
+  let formatted: string;
+
+  if (assetSymbol === "USDC" || assetSymbol === "USDT") {
+    formatted = amount.toFixed(2);
+  } else if (
+    assetSymbol === "wETH" ||
+    assetSymbol === "wBTC" ||
+    assetSymbol === "stETH"
+  ) {
+    formatted = amount < 1 ? amount.toFixed(3) : amount.toFixed(2);
+  } else {
+    // Default behavior for other assets: 2 decimals for small numbers
+    if (amount < 1 && amount > 0) {
+      formatted = amount.toFixed(2);
+    } else {
+      formatted = formatNumber(amount);
+    }
+  }
+
+  // Remove trailing zeros and decimal point if no decimals remain
+  return formatted.replace(/\.?0+$/, "");
+};

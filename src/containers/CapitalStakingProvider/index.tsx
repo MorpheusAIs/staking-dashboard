@@ -17,11 +17,20 @@ import {
   getChainById,
   getContractAddress,
 } from "staking-dashboard/lib/networks";
-import { isAddress, maxInt256, parseUnits, zeroAddress } from "viem";
+import {
+  BaseError,
+  formatUnits,
+  isAddress,
+  maxInt256,
+  parseEther,
+  parseUnits,
+  zeroAddress,
+} from "viem";
 import { arbitrum, base, mainnet, sepolia } from "viem/chains";
 import {
   useAccount,
   useChainId,
+  usePublicClient,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
@@ -33,7 +42,13 @@ import ERC20Abi from "staking-dashboard/lib/abi/ERC20.json";
 import { toaster } from "staking-dashboard/components/ui/toaster";
 import { showToast } from "staking-dashboard/lib/showToast";
 import { CapitalStakingProps } from "./type";
-import { constructTransactionUrl } from "./helper";
+import {
+  constructTransactionUrl,
+  getTransactionUrl,
+  validateWithdraw,
+} from "./helper";
+import SelectedAssetProvider from "../SelectedAssetProvider";
+import { useModalActions } from "../ModalProvider";
 
 export const CapitalStakingContext = createContext<CapitalStakingProps>(
   null as unknown as CapitalStakingProps
@@ -54,11 +69,19 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
 ) => {
   const { children } = props;
   // =============== STATE
-  const [selectedAsset, setSelectedAsset] = useState<AssetSymbol>("stETH");
   const [lastHandledApprovalHash, setLastHandledApprovalHash] = useState<
     `0x${string}` | null
   >(null);
   const [lastHandledStakeHash, setLastHandledStakeHash] = useState<
+    `0x${string}` | null
+  >(null);
+  const [lastHandledWithdrawHash, setLastHandledWithdrawHash] = useState<
+    `0x${string}` | null
+  >(null);
+  const [lastHandledClaimHash, setLastHandledClaimHash] = useState<
+    `0x${string}` | null
+  >(null);
+  const [lastHandledLockClaimHash, setLastHandledLockClaimHash] = useState<
     `0x${string}` | null
   >(null);
 
@@ -73,12 +96,31 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
     writeContractAsync: approveAsync,
     isPending: isSendingApproval,
   } = useWriteContract();
+  const {
+    data: withdrawHash,
+    writeContractAsync: withdrawAsync,
+    isPending: isSendingWithdraw,
+  } = useWriteContract();
+  const {
+    data: claimHash,
+    writeContractAsync: claimAsync,
+    isPending: isSendingClaim,
+  } = useWriteContract();
+
+  const {
+    data: lockClaimHash,
+    writeContractAsync: lockClaimAsync,
+    isPending: isSendingLockClaim,
+  } = useWriteContract();
 
   // =============== HOOKS
   const chainId = useChainId();
   const { address: userAddress } = useAccount();
+  const publicClient = usePublicClient();
+  const { onHandleSetModal } = useModalActions();
 
   // =============== VARIABLES
+
   // Use the dynamic hook for each potential asset - only enabled when contracts exist
   const assetContractData = {
     stETH: useAssetContractData("stETH"),
@@ -105,7 +147,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
     networkEnv
   ) as `0x${string}` | undefined;
 
-  // --- Build Assets Structure Dynamically (Network + Config Cross-Reference) ---
+  // Build Assets Structure Dynamically (Network + Config Cross-Reference)
   const assets = useMemo((): Record<AssetSymbol, AssetData> => {
     // Helper to get available assets that have both metadata AND deployed contracts
     const getAvailableAssetsWithContracts = () => {
@@ -133,41 +175,6 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
             depositPoolAddress !== zeroAddress
           ) {
             availableAssets.push(assetInfo);
-
-            if (process.env.NODE_ENV !== "production") {
-              console.log(`✅ [Dynamic Assets] ${symbol} available:`, {
-                symbol,
-                tokenAddress: assetInfo.address,
-                depositPoolAddress,
-                networkEnv,
-                chainId: l1ChainId,
-              });
-            }
-          } else {
-            if (process.env.NODE_ENV !== "production") {
-              console.log(
-                `❌ [Dynamic Assets] ${symbol} not available - no deposit pool deployed:`,
-                {
-                  symbol,
-                  depositPoolContractName,
-                  depositPoolAddress,
-                  networkEnv,
-                  chainId: l1ChainId,
-                }
-              );
-            }
-          }
-        } else {
-          if (process.env.NODE_ENV !== "production") {
-            console.log(
-              `❌ [Dynamic Assets] ${symbol} not available - no deposit pool contract mapping:`,
-              {
-                symbol,
-                depositPoolContractName,
-                networkEnv,
-                chainId: l1ChainId,
-              }
-            );
           }
         }
       });
@@ -209,29 +216,30 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
             decimals: assetInfo.metadata.decimals,
             icon: assetInfo.metadata.icon,
           },
-          // All data comes from the dynamic hook - no more hardcoded variables!
           userBalance: contractData.userBalance,
           userDeposited: contractData.userDeposited,
           userAllowance: contractData.userAllowance,
           claimableAmount: contractData.claimableAmount,
           userMultiplier: contractData.userMultiplier,
           totalDeposited: contractData.totalDeposited,
-          protocolDetails: null, // TODO: Add to dynamic hook
+          // @TODO: add to dynamic hooks
+          protocolDetails: null,
           poolData: null,
           claimUnlockTimestamp: contractData.claimUnlockTimestamp,
           withdrawUnlockTimestamp: contractData.withdrawUnlockTimestamp,
+
           // Formatted data from hook
           userBalanceFormatted: contractData.userBalanceFormatted,
           userDepositedFormatted: contractData.userDepositedFormatted,
           claimableAmountFormatted: contractData.claimableAmountFormatted,
           userMultiplierFormatted: contractData.userMultiplierFormatted,
           totalDepositedFormatted: contractData.totalDepositedFormatted,
-          minimalStakeFormatted: "100", // TODO: Get from protocol details
+          // @TODO Get from protocol details
+          minimalStakeFormatted: "100",
           claimUnlockTimestampFormatted:
             contractData.claimUnlockTimestampFormatted,
           withdrawUnlockTimestampFormatted:
             contractData.withdrawUnlockTimestampFormatted,
-          // Eligibility flags from hook
           canClaim: contractData.canClaim,
           canWithdraw: contractData.canWithdraw,
         };
@@ -276,10 +284,6 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
       console.error(`Error checking approval status for ${asset}:`, error);
       return false;
     }
-  };
-
-  const onHandleSetSelectedAsset = (asset: AssetSymbol) => {
-    setSelectedAsset(asset);
   };
 
   const onHandleTransaction = async (
@@ -409,6 +413,10 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
     // Validation deposit pool address
     if (assetData.config.depositPoolAddress === zeroAddress)
       throw new Error(`${asset} deposits not yet supported.`);
+    // Validate user balance
+    if (assetData.userBalance <= BigInt(0)) {
+      throw new Error(`No ${asset} balance available`);
+    }
     // Validation balance and allowance
     if (assetData.userBalance < amountBigInt)
       throw new Error("Insufficient balance");
@@ -417,6 +425,10 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
       throw new Error("Insufficient allowance. Please approve first.");
     // Validation chain ID
     if (!l1ChainId) throw new Error("Chain ID not available");
+    // validate lock duration
+    if (!lockDurationSeconds || lockDurationSeconds <= BigInt(0)) {
+      throw new Error("Invalid lock duration");
+    }
 
     // Restore safety net - use contract minimum lock period
     const MINIMUM_CLAIM_LOCK_PERIOD = BigInt(90 * 24 * 60 * 60); // 90 days in seconds
@@ -478,24 +490,205 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
           contractAddress_full: assetData.config.depositPoolAddress,
         });
         // @TODO test thoroughly first
-        // return stakeAsync({
-        //   address: assetData.config.depositPoolAddress,
-        //   abi: DepositPoolAbi,
-        //   functionName: "stake",
-        //   args: [
-        //     // first pool
-        //     V2_REWARD_POOL_INDEX, // pool index
-        //     amountBigInt, // deposit amount
-        //     claimLockEnd, // unlock timestamp
-        //     finalReferrerAddress, // referrer address
-        //   ],
-        //   chainId: l1ChainId, // mainnet chain id
-        // });
+        return stakeAsync({
+          address: assetData.config.depositPoolAddress,
+          abi: DepositPoolAbi,
+          functionName: "stake",
+          args: [
+            // first pool
+            V2_REWARD_POOL_INDEX, // pool index
+            amountBigInt, // deposit amount
+            claimLockEnd, // unlock timestamp
+            finalReferrerAddress, // referrer address
+          ],
+          chainId: l1ChainId, // mainnet chain id
+        });
       },
       {
         loading: `Requesting ${asset} deposit...`,
         success: `Successfully deposited ${amountString} ${asset}!`,
         error: `${asset} deposit failed`,
+      }
+    );
+  };
+
+  const onHandleClaimMorRewards = async (asset: AssetSymbol) => {
+    if (!userAddress || !l1ChainId)
+      throw new Error("Claim prerequisites not met");
+
+    // Get asset data dynamically
+    const assetData = assets[asset];
+    if (!assetData) {
+      throw new Error(`${asset} data not available`);
+    }
+
+    if (!assetData.canClaim || assetData.claimableAmount <= BigInt(0)) {
+      throw new Error(
+        `${asset} claim prerequisites not met or no rewards available`
+      );
+    }
+
+    const targetAddress = assetData.config.depositPoolAddress;
+
+    // For V2 claims, we need ETH for cross-chain gas fees to L2 (Arbitrum Sepolia)
+    // The claim will trigger cross-chain communication via LayerZero
+    const ETH_FOR_CROSS_CHAIN_GAS = parseEther("0.01"); // 0.01 ETH for L2 gas
+
+    await onHandleTransaction(
+      () =>
+        claimAsync({
+          address: targetAddress,
+          abi: DepositPoolAbi,
+          functionName: "claim",
+          args: [V2_REWARD_POOL_INDEX, userAddress],
+          chainId: l1ChainId,
+          value: ETH_FOR_CROSS_CHAIN_GAS, // Send ETH for cross-chain gas
+          gas: BigInt(800000), // Higher gas limit for cross-chain operations
+        }),
+      {
+        loading: `Claiming ${asset} rewards...`,
+        success: `Successfully claimed ${asset} rewards! MOR tokens will be minted on Arbitrum Sepolia.`,
+        error: `${asset} claim failed`,
+      }
+    );
+  };
+
+  const onHandleLockMorRewards = async (
+    asset: AssetSymbol,
+    lockDurationSeconds: bigint
+  ) => {
+    if (!userAddress || !l1ChainId)
+      throw new Error("Lock claim prerequisites not met");
+
+    // Get asset data dynamically
+    const assetData = assets[asset];
+    if (!assetData) {
+      throw new Error(`${asset} data not available`);
+    }
+
+    const targetAddress = assetData.config.depositPoolAddress;
+
+    const lockEndTimestamp =
+      BigInt(Math.floor(Date.now() / 1000)) + lockDurationSeconds;
+
+    await onHandleTransaction(
+      () =>
+        lockClaimAsync({
+          address: targetAddress,
+          abi: DepositPoolAbi,
+          functionName: "lockClaim",
+          args: [V2_REWARD_POOL_INDEX, lockEndTimestamp],
+          chainId: l1ChainId,
+          gas: BigInt(500000),
+        }),
+      {
+        loading: `Locking ${asset} rewards...`,
+        success: `Successfully locked ${asset} rewards for increased multiplier!`,
+        error: `${asset} lock failed`,
+      }
+    );
+  };
+
+  const onHandleWithdraw = async (asset: AssetSymbol, amountString: string) => {
+    // Get asset configuration and data
+    const assetInfo = getAssetConfig(asset, networkEnv);
+
+    const assetData = assets[asset];
+
+    const decimals = assetInfo?.metadata.decimals || 18;
+
+    // Refetch data before withdrawal validation
+    const { data: userPoolData } = await assetContractData[
+      asset
+    ]?.refetch.userData();
+
+    console.log("data---------->", userPoolData);
+
+    const amountBigInt = parseUnits(amountString, decimals);
+
+    // Parse user pool data
+    let userDeposited = assetData.userDeposited;
+
+    if (userPoolData && Array.isArray(userPoolData)) {
+      try {
+        console.log("here------------>");
+        console.log("userdeposited before", userDeposited);
+        userDeposited = BigInt(userPoolData[1] || 0);
+        console.log("userdeposited after", userDeposited);
+      } catch (e) {
+        console.error(
+          `Error parsing user pool data for ${assetData.config.symbol}:`,
+          e
+        );
+      }
+    }
+
+    console.log("user deposited final", userDeposited);
+
+    // Perform withdrawal validations before proceeding
+    validateWithdraw({
+      asset,
+      amountBigInt,
+      assetInfo,
+      assetData,
+      networkEnv,
+      l1ChainId,
+      userDeposited,
+      userAddress,
+    });
+
+    const commonTxParams = {
+      address: assetData.config.depositPoolAddress,
+      abi: DepositPoolAbi,
+      functionName: "withdraw",
+      args: [V2_REWARD_POOL_INDEX, amountBigInt],
+    };
+    // 🔍 SIMULATION: Get exact contract error before execution - Trigged deployment
+    try {
+      await publicClient?.simulateContract({
+        ...commonTxParams,
+        account: userAddress,
+      });
+    } catch (error) {
+      // If simulation fails, throw the actual contract error
+      const contractError = (error as Error).message || "";
+      throw new Error(`Contract simulation failed: ${contractError}`);
+    }
+
+    await onHandleTransaction(
+      async () => {
+        const txParams = {
+          ...commonTxParams,
+          chainId: l1ChainId,
+          gas: BigInt(1200000),
+        };
+
+        console.log("🚀 FINAL TRANSACTION PARAMETERS:", {
+          contractAddress: txParams.address,
+          functionName: txParams.functionName,
+          args: {
+            rewardPoolIndex: txParams.args[0].toString(),
+            amount: txParams.args[1].toString(),
+            amountHex: "0x" + txParams.args[1].toString(16),
+            amountEther: formatUnits(
+              txParams.args[1],
+              assetInfo!.metadata.decimals
+            ),
+          },
+          chainId: txParams.chainId,
+          gasLimit: txParams.gas.toString(),
+          userAddress,
+          expectedGasFeePaidBy: userAddress,
+          transactionWillExecuteAs: userAddress + " (wallet connected account)",
+          timestamp: Date.now(),
+        });
+
+        return withdrawAsync(txParams);
+      },
+      {
+        loading: `Requesting ${asset} withdrawal...`,
+        success: `Successfully withdrew ${amountString} ${asset}!`,
+        error: `${asset} withdrawal failed`,
       }
     );
   };
@@ -515,15 +708,233 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
     error: stakeError,
   } = useWaitForTransactionReceipt({ hash: stakeHash, chainId: l1ChainId });
 
+  const {
+    isLoading: isConfirmingWithdraw,
+    isSuccess: isWithdrawSuccess,
+    isError: isWithdrawError,
+    error: withdrawError,
+  } = useWaitForTransactionReceipt({ hash: withdrawHash, chainId: l1ChainId });
+
+  const {
+    isLoading: isConfirmingClaim,
+    isSuccess: isClaimSuccess,
+    isError: isClaimError,
+    error: claimError,
+  } = useWaitForTransactionReceipt({ hash: claimHash, chainId: l1ChainId });
+
+  const {
+    isLoading: isConfirmingLockClaim,
+    isSuccess: isLockClaimSuccess,
+    isError: isLockClaimError,
+    error: lockClaimError,
+  } = useWaitForTransactionReceipt({ hash: lockClaimHash, chainId: l1ChainId });
+
   // =============== EFFECTS
+  // -------------- STAKE HANDLERS ----------------
   useEffect(() => {
-    if (isApprovalError) {
+    if (isStakeError && stakeError && stakeHash) {
+      console.error("Stake transaction failed:", stakeError);
+
+      const errorMessage =
+        (stakeError as BaseError)?.shortMessage || stakeError.message;
+      const txUrl = getTransactionUrl(l1ChainId, stakeHash);
+
       showToast({
-        title: "Approval failed",
-        description: approvalError?.message || "Approval transaction failed",
+        title: "Staking Failed",
+        description: errorMessage || "Staking transaction failed",
         type: "error",
+        action: txUrl
+          ? {
+              label: "View Transaction",
+              onClick: () => window.open(txUrl, "_blank"),
+            }
+          : undefined,
       });
     }
+  }, [isStakeError, stakeError, stakeHash, l1ChainId]);
+
+  useEffect(() => {
+    if (isStakeSuccess && stakeHash && stakeHash !== lastHandledStakeHash) {
+      const txUrl = getTransactionUrl(l1ChainId, stakeHash);
+      showToast({
+        title: "Stake confimed!",
+        description: "Your stake transaction has been confirmed",
+        type: "success",
+        action: txUrl
+          ? {
+              label: "View Transaction",
+              onClick: () => window.open(txUrl, "_blank"),
+            }
+          : undefined,
+      });
+      Object.values(assetContractData).forEach((asset) => asset.refetch.all());
+      onHandleSetModal(null);
+      setLastHandledStakeHash(stakeHash);
+    }
+  }, [
+    l1ChainId,
+    stakeHash,
+    networkEnv,
+    isStakeError,
+    isStakeSuccess,
+    assetContractData,
+    lastHandledStakeHash,
+  ]);
+
+  // -------------- WITHDRAW HANDLERS ----------------
+  useEffect(() => {
+    if (
+      isWithdrawSuccess &&
+      withdrawHash &&
+      withdrawHash !== lastHandledWithdrawHash
+    ) {
+      const txUrl = getTransactionUrl(l1ChainId || 1, withdrawHash);
+
+      showToast({
+        title: "Withdrawal confirmed!",
+        description: "Your withdrawal transaction has been confirmed",
+        type: "success",
+        action: txUrl
+          ? {
+              label: "View Transaction",
+              onClick: () => window.open(txUrl, "_blank"),
+            }
+          : undefined,
+      });
+
+      // Refetch all asset contract data dynamically (balances, deposits, etc.)
+      Object.values(assetContractData).forEach((asset) => asset.refetch.all());
+
+      setLastHandledWithdrawHash(withdrawHash);
+      onHandleSetModal(null);
+    }
+  }, [isWithdrawSuccess, withdrawHash, assetContractData, l1ChainId]);
+
+  useEffect(() => {
+    if (isWithdrawError && withdrawError && withdrawHash) {
+      const errorMessage =
+        (withdrawError as BaseError)?.shortMessage || withdrawError.message;
+
+      const txUrl = getTransactionUrl(l1ChainId || 1, withdrawHash);
+
+      showToast({
+        title: "Withdrawal Failed",
+        description: errorMessage,
+        type: "error",
+        action: txUrl
+          ? {
+              label: "View Transaction",
+              onClick: () => window.open(txUrl, "_blank"),
+            }
+          : undefined,
+      });
+    }
+  }, [isWithdrawError, withdrawError, withdrawHash, l1ChainId]);
+
+  // -------------- CLAIM HANDLERS ----------------
+  useEffect(() => {
+    if (isClaimSuccess && claimHash && claimHash !== lastHandledClaimHash) {
+      const txUrl = getTransactionUrl(l1ChainId || 1, claimHash);
+
+      showToast({
+        title: "Claim confirmed!",
+        description: "Your claim transaction has been confirmed",
+        type: "success",
+        action: txUrl
+          ? {
+              label: "View Transaction",
+              onClick: () => window.open(txUrl, "_blank"),
+            }
+          : undefined,
+      });
+      onHandleSetModal(null);
+
+      // Refetch all asset reward data dynamically
+      Object.values(assetContractData).forEach((asset) =>
+        asset.refetch.rewards()
+      );
+
+      setLastHandledClaimHash(claimHash);
+    }
+  }, [isClaimSuccess, claimHash, assetContractData, l1ChainId]);
+
+  useEffect(() => {
+    if (isClaimError && claimError && claimHash) {
+      const errorMessage =
+        (withdrawError as BaseError)?.shortMessage || claimError.message;
+
+      const txUrl = getTransactionUrl(l1ChainId || 1, claimHash);
+
+      showToast({
+        title: "Claim Failed",
+        description: errorMessage,
+        type: "error",
+        action: txUrl
+          ? {
+              label: "View Transaction",
+              onClick: () => window.open(txUrl, "_blank"),
+            }
+          : undefined,
+      });
+    }
+  }, [isWithdrawError, withdrawError, withdrawHash, l1ChainId]);
+
+  // -------------- LOCK CLAIM HANDLERS ----------------
+  useEffect(() => {
+    if (
+      isLockClaimSuccess &&
+      lockClaimHash &&
+      lockClaimHash !== lastHandledLockClaimHash
+    ) {
+      const txUrl = l1ChainId
+        ? getTransactionUrl(l1ChainId || 1, lockClaimHash)
+        : null;
+
+      showToast({
+        title: "Lock period update confirmed!",
+        description: "Your lock period update transaction has been confirmed",
+        type: "success",
+        action: txUrl
+          ? {
+              label: "View Transaction",
+              onClick: () => window.open(txUrl, "_blank"),
+            }
+          : undefined,
+      });
+
+      // Refetch all asset multiplier data dynamically
+      Object.values(assetContractData).forEach((asset) =>
+        asset.refetch.multiplier()
+      );
+
+      setLastHandledLockClaimHash(lockClaimHash);
+      onHandleSetModal(null);
+    }
+  }, [isLockClaimSuccess, lockClaimHash, assetContractData, l1ChainId]);
+
+  useEffect(() => {
+    if (isLockClaimError && lockClaimError && lockClaimHash) {
+      console.error("Lock claim transaction failed:", lockClaimError);
+      const errorMessage =
+        (lockClaimError as BaseError)?.shortMessage || lockClaimError.message;
+      const txUrl = getTransactionUrl(l1ChainId || 1, lockClaimHash);
+
+      showToast({
+        title: "Claim Failed",
+        description: errorMessage,
+        type: "error",
+        action: txUrl
+          ? {
+              label: "View Transaction",
+              onClick: () => window.open(txUrl, "_blank"),
+            }
+          : undefined,
+      });
+    }
+  }, [isLockClaimError, lockClaimError, lockClaimHash, l1ChainId]);
+
+  // -------------- APPROVAL HANDLERS ----------------
+  useEffect(() => {
     if (
       isApprovalSuccess &&
       approveHash &&
@@ -552,50 +963,32 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
       setLastHandledApprovalHash(approveHash);
     }
   }, [
-    l1ChainId,
-    approveHash,
-    isApprovalError,
-    assetContractData,
     isApprovalSuccess,
+    approveHash,
     lastHandledApprovalHash,
+    l1ChainId,
+    assetContractData,
   ]);
 
   useEffect(() => {
-    if (isStakeError) {
-      showToast({
-        title: "Deposit failed",
-        description: stakeError?.message || "Deposit transaction failed",
-        type: "error",
-      });
-    }
+    if (isApprovalError) {
+      const errorMessage =
+        (approvalError as BaseError)?.shortMessage || approvalError.message;
+      const txUrl = getTransactionUrl(l1ChainId || 1, approveHash!);
 
-    if (isStakeSuccess && stakeHash && stakeHash !== lastHandledStakeHash) {
       showToast({
-        title: "Stake successful!",
-        description: "Your stake transaction has been confirmed",
-        type: "success",
-        action: {
-          label: "View on Explorer",
-          onClick: () => {
-            const explorerUrl = chain?.blockExplorers?.default.url;
-            if (explorerUrl && stakeHash) {
-              const url = constructTransactionUrl(explorerUrl, stakeHash);
-              window.open(url, "_blank");
+        title: "Approval failed",
+        description: approvalError?.message || "Approval transaction failed",
+        type: "error",
+        action: txUrl
+          ? {
+              label: "View Transaction",
+              onClick: () => window.open(txUrl, "_blank"),
             }
-          },
-        },
+          : undefined,
       });
-      setLastHandledStakeHash(stakeHash);
     }
-  }, [
-    l1ChainId,
-    stakeHash,
-    networkEnv,
-    isStakeError,
-    isStakeSuccess,
-    assetContractData,
-    lastHandledStakeHash,
-  ]);
+  }, [l1ChainId, approveHash, isApprovalError]);
 
   // =============== VARIABLES
   const isProcessingDeposit =
@@ -604,22 +997,39 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
     isSendingStake ||
     isConfirmingStake;
 
+  const isProcessingWithdraw = isSendingWithdraw || isConfirmingWithdraw;
+  const isProcessingClaim = isSendingClaim || isConfirmingClaim;
+  const isProcessingChangeLock = isSendingLockClaim || isConfirmingLockClaim;
+  const totalClaimableAmountFormatted = formatBigInt(
+    Object.values(assets).reduce(
+      (total, asset) => total + asset.claimableAmount,
+      BigInt(0)
+    ),
+    18,
+    2
+  );
+
   return (
     <CapitalStakingContext.Provider
       value={{
-        userAddress,
-        onHandleSetSelectedAsset,
         assets,
+        userAddress,
         l1ChainId,
         networkEnv,
-        selectedAsset,
-        onHandleApproveToken,
-        checkAndUpdateApprovalNeeded,
         onHandleDeposit,
+        onHandleWithdraw,
+        isProcessingClaim,
         isProcessingDeposit,
+        isProcessingWithdraw,
+        onHandleApproveToken,
+        onHandleLockMorRewards,
+        isProcessingChangeLock,
+        onHandleClaimMorRewards,
+        checkAndUpdateApprovalNeeded,
+        totalClaimableAmountFormatted,
       }}
     >
-      {children}
+      <SelectedAssetProvider>{children}</SelectedAssetProvider>
     </CapitalStakingContext.Provider>
   );
 };

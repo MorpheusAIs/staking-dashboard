@@ -1,5 +1,7 @@
 import { Container, Stack } from "@chakra-ui/react";
 import { CapitalStaking } from "staking-dashboard/containers/CapitalStaking";
+import CapitalStakingProvider from "staking-dashboard/containers/CapitalStakingProvider";
+import ModalProvider from "staking-dashboard/containers/ModalProvider";
 export default function CapitalPage() {
   return (
     <Container
@@ -10,7 +12,11 @@ export default function CapitalPage() {
       minW={0}
     >
       <Stack justifyContent={"center"} alignItems={"center"} height={"full"}>
-        <CapitalStaking />
+        <ModalProvider>
+          <CapitalStakingProvider>
+            <CapitalStaking />
+          </CapitalStakingProvider>
+        </ModalProvider>
       </Stack>
     </Container>
   );

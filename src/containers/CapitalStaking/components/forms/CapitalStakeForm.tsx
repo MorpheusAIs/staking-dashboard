@@ -9,7 +9,6 @@ import {
   HStack,
   Menu,
   Box,
-  Alert,
   useRecipe,
 } from "@chakra-ui/react";
 import { Controller } from "react-hook-form";
@@ -19,9 +18,10 @@ import { AssetSymbol } from "staking-dashboard/lib/configs/asset";
 import "staking-dashboard/app/global.css";
 import { formatUnits } from "viem";
 import { buttonRecipe } from "staking-dashboard/lib/configs/theme";
-import { useNetwork } from "../NetworkProvider";
+import { useNetwork } from "../../../NetworkProvider";
 import { mainnet } from "viem/chains";
 import { useContractPowerFactor } from "staking-dashboard/hooks/useContractPowerFactor";
+import LockPeriodSelector from "staking-dashboard/components/LockPeriodSelector";
 
 export type CapitalStakingFormProps = {
   assets: Record<AssetSymbol, AssetData>;
@@ -34,6 +34,7 @@ export type CapitalStakingFormProps = {
   form: any;
   isProcessingDeposit: boolean;
   currentlyNeedsApproval: boolean;
+  disabled?: boolean;
 };
 
 /**
@@ -45,15 +46,16 @@ export const CapitalStakingForm: React.FC<CapitalStakingFormProps> = (
   props
 ) => {
   const {
+    form,
     assets,
+    onSubmit,
+    disabled,
     l1ChainId,
     networkEnv,
     selectedAsset,
-    onSubmit,
-    form,
+    isProcessingDeposit,
     currentlyNeedsApproval,
     onHandleSetSelectedAsset,
-    isProcessingDeposit,
   } = props;
   // =============== HOOKS
   const recipe = useRecipe({ recipe: buttonRecipe });
@@ -96,8 +98,6 @@ export const CapitalStakingForm: React.FC<CapitalStakingFormProps> = (
   const { unlockDate, isLoading, powerFactor, warning, error } =
     currentResult || {};
 
-  console.log("Unlock Date:", unlockDate);
-
   // =============== EVENTS
   const onSetSelectedAsset = (asset: AssetSymbol) => {
     setValue("depositAmount", "");
@@ -134,7 +134,8 @@ export const CapitalStakingForm: React.FC<CapitalStakingFormProps> = (
   const rawBalance = currentAssetBalance.balance;
   const zeroBalance = !rawBalance || rawBalance === BigInt(0);
   const commonDisableCondition = isProcessingDeposit || zeroBalance;
-  const buttonDisableCondition = commonDisableCondition || isNetworkSwitching;
+  const buttonDisableCondition =
+    commonDisableCondition || isNetworkSwitching || disabled;
 
   // =============== RENDER
   const renderButtonText = () => {
@@ -260,6 +261,10 @@ export const CapitalStakingForm: React.FC<CapitalStakingFormProps> = (
                   disabled={commonDisableCondition}
                 />
               </InputGroup>
+
+              <Text fontSize="xs" color="gray.400" lineHeight="1.4" mb={1}>
+                Deposits are locked for the first 7 days.
+              </Text>
               {errors.depositAmount && (
                 <Text color="red.400" fontSize="xs">
                   {errors.depositAmount.message}
@@ -272,83 +277,7 @@ export const CapitalStakingForm: React.FC<CapitalStakingFormProps> = (
           name="lockDuration"
           control={control}
           render={({ field }) => (
-            <VStack width="full" alignItems="flex-start" mt={4}>
-              <Text fontSize="sm" fontWeight="medium">
-                MOR Claims Lock Period
-              </Text>
-
-              <Text fontSize="xs" color="gray.400" lineHeight="1.4" mb={1}>
-                Minimum 7 days required. Locking MOR claims increases your power
-                factor for future rewards but delays claiming. Power Factor
-                activates after ~7–8 months, scales up to x10.7 at ~7 years, and
-                remains capped at x10.7 for longer periods.
-              </Text>
-
-              <HStack width="full" gap={2}>
-                <Input
-                  value={field.value?.duration ?? ""}
-                  placeholder="Enter duration"
-                  css={{ "--focus-color": "{colors.primary}" }}
-                  onChange={(e) => {
-                    if (e.target.value === "") {
-                      field.onChange({ ...field.value, duration: "" });
-                      return;
-                    }
-                    field.onChange({
-                      ...field.value,
-                      duration: Number(e.target.value),
-                    });
-                  }}
-                />
-
-                <Menu.Root>
-                  <Menu.Trigger asChild>
-                    <Box
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="space-between"
-                      gap={2}
-                      px={{ base: 5, md: 4 }}
-                      py={2}
-                      border="1px solid"
-                      borderColor="border"
-                      borderRadius={"sm"}
-                      color="white"
-                      cursor="pointer"
-                      _hover={{ bg: "gray.700" }}
-                    >
-                      {field.value?.unit ?? "Days"}
-                    </Box>
-                  </Menu.Trigger>
-
-                  <Menu.Positioner>
-                    <Menu.Content>
-                      {["Days", "Months", "Years"].map((unit) => (
-                        <Menu.Item
-                          key={unit}
-                          onClick={() =>
-                            field.onChange({ ...field.value, unit })
-                          }
-                          value={unit}
-                          py={2}
-                          cursor="pointer"
-                          _hover={{ bg: "gray.700" }}
-                        >
-                          {unit}
-                        </Menu.Item>
-                      ))}
-                    </Menu.Content>
-                  </Menu.Positioner>
-                </Menu.Root>
-              </HStack>
-
-              {(errors.lockDuration?.duration || errors.lockDuration?.unit) && (
-                <Text color="red.400" fontSize="xs">
-                  {errors.lockDuration.duration?.message ||
-                    errors.lockDuration.unit?.message}
-                </Text>
-              )}
-            </VStack>
+            <LockPeriodSelector field={field} errors={errors} />
           )}
         />
         {renderSummary()}

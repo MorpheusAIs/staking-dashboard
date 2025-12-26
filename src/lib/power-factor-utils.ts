@@ -25,6 +25,7 @@ export const POWER_FACTOR_CONSTANTS = {
  */
 export function durationToSeconds(value: string, unit: TimeUnit): bigint {
   const numValue = parseInt(value, 10);
+  console.log("num value", numValue);
   if (isNaN(numValue) || numValue <= 0) return BigInt(0);
 
   let diffSeconds: number;
@@ -53,28 +54,9 @@ export function durationToSeconds(value: string, unit: TimeUnit): bigint {
       // Note: Maximum is now 10 years, but this 6-year case is kept for backward compatibility
       if (numValue === 6) {
         diffSeconds = 189216000; // Exact value from documentation: 6 * 365 * 24 * 60 * 60
-        if (process.env.NODE_ENV !== "production") {
-          console.log(
-            "🎯 [6-YEAR SPECIAL] Using exact contract-expected seconds for maximum power factor"
-          );
-          console.log(
-            "  Using hardcoded 189,216,000 seconds (from documentation)"
-          );
-          console.log("  This is exactly 2190 days (6 * 365) → x9.7 maximum");
-        }
       } else {
         // For other year values, use standard 365 days per year
         diffSeconds = numValue * 365 * 86400;
-        if (process.env.NODE_ENV !== "production" && numValue >= 5) {
-          console.log(
-            `🔍 [${numValue}-YEAR DEBUG] Using standard calculation:`
-          );
-          console.log(
-            `  ${numValue} years = ${diffSeconds} seconds = ${
-              diffSeconds / 86400
-            } days`
-          );
-        }
       }
       // Add 5-minute safety buffer for years as well
       diffSeconds += 300;
@@ -93,23 +75,11 @@ export function durationToSeconds(value: string, unit: TimeUnit): bigint {
  */
 export function formatPowerFactor(rawMultiplier: bigint): string {
   try {
-    if (process.env.NODE_ENV !== "production") {
-      console.group("🔢 [Power Factor Debug] Formatting");
-      console.log("Raw Multiplier (BigInt):", rawMultiplier.toString());
-    }
-
     // Convert raw contract value to display value according to documentation
     const scaleFactor =
       BigInt(10) ** BigInt(POWER_FACTOR_CONSTANTS.MULTIPLIER_SCALE);
     const scaledNumber = Number(rawMultiplier) / Number(scaleFactor);
     const powerFactor = scaledNumber / POWER_FACTOR_CONSTANTS.REWARDS_DIVIDER;
-
-    if (process.env.NODE_ENV !== "production") {
-      console.log("Scale Factor (10^21):", scaleFactor.toString());
-      console.log("Scaled Number:", scaledNumber);
-      console.log("Power Factor (before cap):", powerFactor);
-      console.log("Max Power Factor:", POWER_FACTOR_CONSTANTS.MAX_POWER_FACTOR);
-    }
 
     // Cap at theoretical maximum
     const cappedPowerFactor = Math.min(
@@ -117,12 +87,6 @@ export function formatPowerFactor(rawMultiplier: bigint): string {
       POWER_FACTOR_CONSTANTS.MAX_POWER_FACTOR
     );
     const formatted = `x${cappedPowerFactor.toFixed(1)}`;
-
-    if (process.env.NODE_ENV !== "production") {
-      console.log("Capped Power Factor:", cappedPowerFactor);
-      console.log("Final Formatted:", formatted);
-      console.groupEnd();
-    }
 
     // Format to 1 decimal place as requested (x_._ format)
     return formatted;
@@ -147,14 +111,6 @@ export function formatPowerFactorPrecise(rawMultiplier: bigint): string {
     const powerFactor =
       parseFloat(scaledValue) / POWER_FACTOR_CONSTANTS.REWARDS_DIVIDER;
 
-    if (process.env.NODE_ENV !== "production") {
-      console.log("🔢 [Power Factor] Raw:", rawMultiplier.toString());
-      console.log(
-        "🔢 [Power Factor] Calculated:",
-        powerFactor.toFixed(4) + "x"
-      );
-    }
-
     // Cap at actual contract maximum (9.7x)
     const cappedPowerFactor = Math.min(
       powerFactor,
@@ -163,10 +119,6 @@ export function formatPowerFactorPrecise(rawMultiplier: bigint): string {
 
     // Format to 1 decimal place
     const formatted = `x${cappedPowerFactor.toFixed(1)}`;
-
-    if (process.env.NODE_ENV !== "production") {
-      console.log("🔢 [Power Factor] Final:", formatted);
-    }
 
     return formatted;
   } catch (error) {
@@ -332,10 +284,6 @@ export function calculateUnlockDate(
 
   const unlockDate = new Date(startDate);
 
-  // if (process.env.NODE_ENV !== 'production') {
-  //   console.log('📅 [Unlock Date] Calculating with REAL calendar for display:', { value, unit, startDate: startDate.toISOString() });
-  // }
-
   // Use REAL calendar math for accurate user display
   // (Different from durationToSeconds which uses contract-expected values)
   switch (unit) {
@@ -353,17 +301,6 @@ export function calculateUnlockDate(
     default:
       return null;
   }
-
-  // if (process.env.NODE_ENV !== 'production') {
-  //   console.log('📅 [Unlock Date] Real calendar result:', unlockDate.toISOString());
-  //   const daysDiff = (unlockDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-  //   console.log('📅 [Unlock Date] Real calendar days:', daysDiff.toFixed(2));
-
-  //   // Show difference between display date and contract calculation
-  //   if (unit === 'years' && numValue === 6) {
-  //     console.log('📅 [Unlock Date] Note: Display uses real calendar, power factor uses contract-expected 2190 days → x9.7');
-  //   }
-  // }
 
   return unlockDate;
 }

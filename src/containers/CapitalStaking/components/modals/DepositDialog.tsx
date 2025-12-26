@@ -1,14 +1,20 @@
-import { Dialog, Portal, CloseButton } from "@chakra-ui/react";
+"use client";
+import { Dialog, Portal, CloseButton, Alert, Stack } from "@chakra-ui/react";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useCapitalStaking } from "staking-dashboard/hooks/useCapitalStaking";
-import CapitalStakingForm from "./CapitalStakeForm";
+import CapitalStakingForm from "../forms/CapitalStakeForm";
 import { durationToSeconds } from "staking-dashboard/lib/power-factor-utils";
 import { SUBNET_CONFIG } from "staking-dashboard/lib/configs/subnet.config";
-import { schemaValidation, validateReferrerAddressHelper } from "./helper";
+import {
+  depositSchemaValidation,
+  validateReferrerAddressHelper,
+} from "../../helper";
 import { useEnsAddress } from "wagmi";
 import { showToast } from "staking-dashboard/lib/showToast";
+import { useSelectedAsset } from "../../../SelectedAssetProvider";
+import { toaster } from "staking-dashboard/components/ui/toaster";
 
 export type DepositDialogProps = {
   open: boolean;
@@ -27,27 +33,30 @@ export const DepositDialog: React.FC<DepositDialogProps> = (props) => {
   // =============== HOOKS
   const {
     assets,
-    selectedAsset,
     l1ChainId,
     networkEnv,
     onHandleDeposit,
-    onHandleSetSelectedAsset,
     checkAndUpdateApprovalNeeded,
     onHandleApproveToken,
     userAddress,
     isProcessingDeposit,
   } = useCapitalStaking();
+  const { selectedAsset, onHandleSetSelectedAsset } = useSelectedAsset();
 
   // =============== STATE
   const [currentlyNeedsApproval, setCurrentlyNeedsApproval] = useState(false);
   const [referralAddressError, setReferralAddressError] = useState<
     string | null
   >(null);
+  const [errors, setErrors] = useState<string | null>(null);
 
   // =============== HOOKS
   const form = useForm({
     resolver: yupResolver(
-      schemaValidation({ currentAsset: assets[selectedAsset], selectedAsset })
+      depositSchemaValidation({
+        currentAsset: assets[selectedAsset],
+        selectedAsset,
+      })
     ),
     mode: "all",
     defaultValues: {
@@ -95,6 +104,8 @@ export const DepositDialog: React.FC<DepositDialogProps> = (props) => {
     },
   });
 
+  console.log("resolvedAddress:", resolvedAddress);
+
   // =============== EFFECTS
   // Check approval status when dependencies change
   useEffect(() => {
@@ -112,12 +123,14 @@ export const DepositDialog: React.FC<DepositDialogProps> = (props) => {
         ensError,
         ETH_ADDRESS_REGEX
       );
+
       if (!isValid && error) {
         setReferralAddressError(error);
         showToast({
           title: "Invalid Referrer Address",
           description: error,
           type: "error",
+          id: "deposit-referrer-error",
         });
       }
     }
@@ -147,7 +160,8 @@ export const DepositDialog: React.FC<DepositDialogProps> = (props) => {
         );
 
         // Use resolved address if available, otherwise use the original input
-        const finalReferrerAddress = SUBNET_CONFIG.referralAddress;
+        const finalReferrerAddress =
+          resolvedAddress || SUBNET_CONFIG.referralAddress;
 
         // @TODO can be removed after testing
         // Debug lock period validation
@@ -196,13 +210,32 @@ export const DepositDialog: React.FC<DepositDialogProps> = (props) => {
       }
 
       // Handle other errors with a more user-friendly message
-      // if (errorMessage.includes("insufficient funds")) {
-      //   setFormError("Insufficient funds for this transaction.");
-      // } else if (errorMessage.includes("gas")) {
-      //   setFormError("Transaction failed due to gas issues. Please try again.");
-      // } else {
-      //   setFormError("Transaction failed. Please try again.");
-      // }
+      if (errorMessage.includes("insufficient funds")) {
+        setErrors("Insufficient funds for this transaction.");
+        toaster.create({
+          description: "Insufficient funds for this transaction.",
+          type: "error",
+        });
+      } else if (errorMessage.includes("gas")) {
+        setErrors("Transaction failed due to gas issues. Please try again.");
+        toaster.create({
+          description:
+            "Transaction failed due to gas issues. Please try again.",
+          type: "error",
+        });
+      } else if (errorMessage.includes("lock duration")) {
+        setErrors("Invalid lock duration specified.");
+        toaster.create({
+          description: "Invalid lock duration specified.",
+          type: "error",
+        });
+      } else {
+        setErrors(errorMessage);
+        toaster.create({
+          description: errorMessage,
+          type: "error",
+        });
+      }
     }
   };
 
@@ -212,9 +245,13 @@ export const DepositDialog: React.FC<DepositDialogProps> = (props) => {
       lazyMount
       open={open}
       onOpenChange={(e) => {
+        onHandleOpen(e.open);
+      }}
+      onExitComplete={() => {
         // reset all the errors state or value when dialog is closed
         form.reset();
-        onHandleOpen(e.open);
+        form.clearErrors();
+        setErrors(null);
       }}
       placement={"center"}
       trapFocus={false}
@@ -237,7 +274,20 @@ export const DepositDialog: React.FC<DepositDialogProps> = (props) => {
                 l1ChainId={l1ChainId}
                 selectedAsset={selectedAsset}
                 currentlyNeedsApproval={currentlyNeedsApproval}
+                disabled={!!referralAddressError}
               />
+              {(errors || referralAddressError) && (
+                <Stack pt={5}>
+                  <Alert.Root status="error">
+                    <Alert.Indicator />
+                    <Alert.Content>
+                      <Alert.Title>
+                        {errors || referralAddressError}
+                      </Alert.Title>
+                    </Alert.Content>
+                  </Alert.Root>
+                </Stack>
+              )}
             </Dialog.Body>
             <Dialog.CloseTrigger asChild>
               <CloseButton size="sm" />

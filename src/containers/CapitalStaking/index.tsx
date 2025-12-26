@@ -1,4 +1,5 @@
 "use client";
+
 import {
   Box,
   HStack,
@@ -9,33 +10,58 @@ import {
   Button,
   useRecipe,
 } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
-import CapitalStakingProvider from "../CapitalStakingProvider";
-import DepositDialog from "./DepositDialog";
+import { useEffect } from "react";
+import DepositDialog from "./components/modals/DepositDialog";
 import { buttonRecipe } from "staking-dashboard/lib/configs/theme";
 import { useChainId, useSwitchChain } from "wagmi";
 import { mainnet } from "viem/chains";
-import StakingPosition from "./StakingPosition";
+import StakingPosition from "./components/views/StakingPosition";
+import WithdrawModal from "./components/modals/WithdrawModal";
+import MorRewardsModal from "./components/modals/MorRewardsModal";
+import StakeMorRewardsModal from "./components/modals/StakeMorRewardsModal";
+import { useModalActions, useModalState } from "../ModalProvider";
+
 /**
  * ===========================
  * MAIN
  * ===========================
  */
 export const CapitalStaking = () => {
-  // =============== STATE
-  const [isDepositDialogOpen, setIsDepositDialogOpen] = useState(false);
-
   // =============== HOOKS
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
+  const { activeModal } = useModalState();
+  const { onHandleSetModal } = useModalActions();
 
   // =============== VARIABLES
   const recipe = useRecipe({ recipe: buttonRecipe });
   const styles = recipe({ visual: "solid" });
+  const isDepositModalActive = activeModal === "deposit";
+  const isWithdrawModalActive = activeModal === "withdraw";
+  const isLockRewardsModalActive = activeModal === "lockMorRewards";
+  const isClaimRewardsModalActive = activeModal === "claimMorRewards";
+  const isStakeMorRewardsModalActive = activeModal === "stakeMorRewards";
 
   // =============== EVENTS
   const onHandleOpenDepositDialog = (open: boolean) => {
-    setIsDepositDialogOpen(open);
+    onHandleSetModal(open ? "deposit" : null);
+  };
+
+  const onHandleOpenWithdrawModal = (open: boolean) => {
+    onHandleSetModal(open ? "withdraw" : null);
+  };
+
+  const onHandleOpenMorRewardsModal = (open: boolean) => {
+    onHandleSetModal(
+      open
+        ? isClaimRewardsModalActive
+          ? "claimMorRewards"
+          : "lockMorRewards"
+        : null
+    );
+  };
+  const onHandleOpenStakeMorRewardsModal = (open: boolean) => {
+    onHandleSetModal(open ? "stakeMorRewards" : null);
   };
 
   // =============== EFFECTS
@@ -43,14 +69,26 @@ export const CapitalStaking = () => {
     if (chainId !== mainnet.id) {
       switchChain({ chainId: mainnet.id });
     }
-  }, []);
+  }, [chainId]);
 
   // =============== VIEWS
   return (
-    <CapitalStakingProvider>
+    <>
       <DepositDialog
-        open={isDepositDialogOpen}
+        open={isDepositModalActive}
         onHandleOpen={onHandleOpenDepositDialog}
+      />
+      <WithdrawModal
+        open={isWithdrawModalActive}
+        onHandleOpen={onHandleOpenWithdrawModal}
+      />
+      <MorRewardsModal
+        open={isClaimRewardsModalActive || isLockRewardsModalActive}
+        onHandleOpen={onHandleOpenMorRewardsModal}
+      />
+      <StakeMorRewardsModal
+        open={isStakeMorRewardsModalActive}
+        onHandleOpen={onHandleOpenStakeMorRewardsModal}
       />
       <VStack
         bg="card"
@@ -104,7 +142,7 @@ export const CapitalStaking = () => {
                 fontSize="md"
                 display={{ base: "none", md: "block" }}
               >
-                Mainnet
+                {chainId === mainnet.id ? "Mainnet" : "Wrong Network"}
               </Text>
             </HStack>
           </Box>
@@ -125,18 +163,15 @@ export const CapitalStaking = () => {
               borderRadius={"sm"}
               css={styles}
               px={5}
-              onClick={() => setIsDepositDialogOpen(true)}
+              onClick={() => onHandleOpenDepositDialog(true)}
             >
               Deposit
             </Button>
           </HStack>
           <StakingPosition />
-          {/* <VStack py={5} w={"full"} alignItems={"center"}>
-            <Text color="gray.400">No active staking positions found.</Text>
-          </VStack> */}
         </VStack>
       </VStack>
-    </CapitalStakingProvider>
+    </>
   );
 };
 
