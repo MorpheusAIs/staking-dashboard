@@ -1,7 +1,13 @@
+"use client";
 import { VStack, Text, HStack, Input, Menu, Box } from "@chakra-ui/react";
 import { FieldErrors } from "react-hook-form";
 import { GoChevronDown } from "react-icons/go";
-import { TimeUnit } from "staking-dashboard/lib/power-factor-utils";
+import { TimeUnit } from "staking-dashboard/lib/powerFactorUtils";
+
+export type LockPeriodDuration = {
+  duration: string;
+  unit: TimeUnit;
+};
 
 export type LockPeriodSelectorProps = {
   field: {
@@ -9,10 +15,7 @@ export type LockPeriodSelectorProps = {
     value: { duration: number | string; unit: TimeUnit };
   };
   errors: FieldErrors<{
-    lockDuration: {
-      duration: string;
-      unit: "Days" | "Months" | "Years";
-    };
+    lockDuration: LockPeriodDuration;
   }>;
 };
 
@@ -36,7 +39,7 @@ export const LockPeriodSelector: React.FC<LockPeriodSelectorProps> = (
         MOR Claims Lock Period
       </Text>
 
-      <Text fontSize="xs" color="gray.400" lineHeight="1.4" mb={1}>
+      <Text fontSize="xs" color="secondaryText" lineHeight="1.4" mb={1}>
         Minimum 7 days required. Locking MOR claims increases your power factor
         for future rewards but delays claiming. Power Factor activates after
         ~7-8 months, scales up to x10.7 at ~7 years, and remains capped at x10.7

@@ -5,8 +5,12 @@ import {
   ExtractChainConfigArgs,
   ExtractChainConfigReturn,
 } from "staking-dashboard/@types/helpers";
-import { SUBNET_CONFIG } from "./configs/subnet.config";
 import { AssetSymbol } from "./configs/asset";
+import {
+  SUBNET_CONFIG,
+  SubnetConfig,
+  TEST_SUBNET_CONFIG,
+} from "./configs/subnet.config";
 
 // Helper to ensure string arrays for RPC URLs
 export function ensureStringArray(
@@ -176,6 +180,8 @@ export const formatStakerData = (
   let lastStake: bigint;
   let claimLockEndRaw: bigint;
 
+  const subnetConfig = getSubnetConfig(isTestnet);
+
   if (!stakerData)
     return {
       stakedRaw: BigInt(0),
@@ -212,7 +218,7 @@ export const formatStakerData = (
     // For mainnet, calculate claimLockEnd
     claimLockEndRaw = BigInt(0); // Default to 0
     if (lastStake !== BigInt(0)) {
-      const lpSeconds = SUBNET_CONFIG.lockPeriodInSeconds;
+      const lpSeconds = subnetConfig.lockPeriodInSeconds;
       claimLockEndRaw = BigInt(Number(lastStake) + lpSeconds);
     }
   }
@@ -224,7 +230,7 @@ export const formatStakerData = (
     claimLockEndRaw === BigInt(0) ||
     Number(claimLockEndRaw) < Number(lastStake)
   ) {
-    const lpSeconds = SUBNET_CONFIG.lockPeriodInSeconds;
+    const lpSeconds = subnetConfig.lockPeriodInSeconds;
     effectiveClaimLockEnd = BigInt(Number(lastStake) + lpSeconds);
   }
 
@@ -266,7 +272,7 @@ export const formatStakerData = (
 // Helper to convert smallest unit (wei-like) to MOR
 export const toMOR = (value: number) => {
   const morValue = Number(value) / 1e18;
-  return isNaN(morValue) ? "0" : Math.floor(morValue).toLocaleString();
+  return isNaN(morValue) ? "0" : Math.ceil(morValue).toLocaleString();
 };
 
 export const formatDuration = (seconds: number) => {
@@ -310,11 +316,9 @@ export function formatTimestamp(
     const tsNumber = Number(timestamp);
 
     if (isNaN(tsNumber)) {
-      console.log("[formatTimestamp] Returning 'Invalid Number' due to NaN.");
       return "Invalid Number";
     }
     if (tsNumber === 0) {
-      console.log("[formatTimestamp] Returning 'Never' due to zero.");
       return "Never";
     }
 
@@ -440,4 +444,11 @@ export const parseDepositAmount = (
     console.error("Error parsing deposit amount:", error);
     return 0;
   }
+};
+
+export const getSubnetConfig = (isTestnet: boolean): SubnetConfig => {
+  if (isTestnet) {
+    return TEST_SUBNET_CONFIG;
+  }
+  return SUBNET_CONFIG;
 };

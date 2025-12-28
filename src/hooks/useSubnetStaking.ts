@@ -31,7 +31,7 @@ import {
 } from "staking-dashboard/@types/useSubnetStaking";
 import { validatePreApproval, validatePreStake } from "./helpers";
 import { useNetwork } from "staking-dashboard/containers/NetworkProvider";
-import { getSafeWalletUrlIfApplicable } from "staking-dashboard/lib/configs/safe-wallet-detection";
+import { getSafeWalletUrlIfApplicable } from "staking-dashboard/lib/configs/SafeWalletDetection";
 import { showToast } from "staking-dashboard/lib/showToast";
 import { waitForTransactionReceipt } from "wagmi/actions";
 
@@ -654,6 +654,7 @@ export const useStaking = (args: UseStakingProps) => {
         showToast({
           title: "Something went wrong",
           description: message,
+          id: "use-subnet-staking-chain-config-error",
           type: "error",
         });
       },
@@ -661,6 +662,7 @@ export const useStaking = (args: UseStakingProps) => {
         showToast({
           title: "Warning",
           description: message,
+          id: "use-subnet-staking-chain-config-warning",
           type: "warning",
         });
       },
@@ -870,6 +872,7 @@ export const useStaking = (args: UseStakingProps) => {
   // 2 condition flags to ensure correct loading states, first for writing transactions, second for waiting for them to be mined
   const isStaking = isStakePending || isStakeTxLoading;
   const isApproving = isApprovePending || isApproveTxLoading;
+
   // Loading state for all read contract data
   const isLoadingData =
     isFetchingToken ||
@@ -878,11 +881,9 @@ export const useStaking = (args: UseStakingProps) => {
     isFetchingAllowance ||
     isFetchingClaimableAmount;
 
-  // @TODO withdraw
-  const isAnyTxPending = isApproving || isStaking;
-  // || isWithdrawing || isClaiming;
-  const isSubmitting = isAnyTxPending || isNetworkSwitching;
   const isWithdrawing = isWithdrawPending || isWithdrawTxLoading;
+  const isAnyTxPending = isApproving || isStaking || isWithdrawing;
+  const isSubmitting = isAnyTxPending || isNetworkSwitching;
 
   // =============== RETURN
   return {

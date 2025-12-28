@@ -8,7 +8,7 @@ import {
   TimeUnit,
   validateLockDuration,
   willActivatePowerFactor,
-} from "staking-dashboard/lib/power-factor-utils";
+} from "staking-dashboard/lib/powerFactorUtils";
 import { useReadContract } from "wagmi";
 import LockMultiplierMathAbi from "staking-dashboard/lib/abi/LockMultiplierMath.json";
 

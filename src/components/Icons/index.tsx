@@ -9,10 +9,10 @@ import { AssetSymbol } from "staking-dashboard/lib/configs/asset";
 export { EthIcon, WbtcIcon, UsdcIcon, UsdtIcon, LinkIcon };
 
 // Icon component props interface
-export interface AssetIconProps {
+export type AssetIconProps = {
   className?: string;
   size?: number | string;
-}
+};
 
 // Asset icon mapping
 const assetIconMap = {

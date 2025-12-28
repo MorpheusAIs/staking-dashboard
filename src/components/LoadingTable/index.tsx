@@ -1,3 +1,4 @@
+"use client";
 import { Box, Skeleton, Table } from "@chakra-ui/react";
 
 export type LoadingTableProps = {

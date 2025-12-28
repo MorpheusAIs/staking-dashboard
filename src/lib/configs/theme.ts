@@ -95,7 +95,7 @@ const config = defineConfig({
           value: "#FFFFFF",
         },
         secondaryTextValue: {
-          value: "#6B7280",
+          value: "#A1A1AA",
         },
         background: {
           value:
@@ -118,10 +118,6 @@ const config = defineConfig({
     // ============== SEMANTIC TOKENS
     semanticTokens: {
       colors: {
-        // @TODO fix this
-        // bg: {
-        //   value: "{colors.background}",
-        // },
         card: {
           value: "{colors.boxBackground}",
         },

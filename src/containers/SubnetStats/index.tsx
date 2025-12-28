@@ -1,35 +1,59 @@
+"use client";
 import {
   Box,
   Grid,
   GridItem,
   HStack,
+  IconButton,
   Skeleton,
   Text,
+  useDisclosure,
   VStack,
 } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
-import { SUBNET_CONFIG } from "staking-dashboard/lib/configs/subnet.config";
 import {
   GET_BUILDERS_PROJECT_BY_ID,
   GET_BUILDERS_PROJECT_BY_ID_TESTNET,
 } from "staking-dashboard/lib/graphql/builders";
-import {
-  fetchQuery,
-  GRAPHQL_ENDPOINTS,
-} from "staking-dashboard/lib/graphql/fetchQuery";
+import { fetchQuery } from "staking-dashboard/lib/graphql/fetchQuery";
 import { useChainId } from "wagmi";
-import { BsStack } from "react-icons/bs";
-import { FaUsers } from "react-icons/fa";
-import { LuClock } from "react-icons/lu";
+import { GrCircleQuestion } from "react-icons/gr";
 import {
   formatDuration,
   formatTimeDuration,
   toMOR,
 } from "staking-dashboard/lib/helpers";
+import { getSubnetConfig } from "staking-dashboard/lib/helpers";
+import { Tooltip } from "staking-dashboard/components/ui/tooltip";
 
 export type SubnetStatsProps = {
   isTestnet: boolean;
   tokenSymbol: string;
+};
+
+type Stat = {
+  id: number;
+  label: string;
+  value: React.ReactNode;
+  tooltip?: string;
+};
+
+const StatTooltip: React.FC<{ tooltip: string }> = ({ tooltip }) => {
+  const { open, onOpen, onClose, onToggle } = useDisclosure();
+  return (
+    <Tooltip open={open} content={tooltip}>
+      <IconButton
+        aria-label="Info"
+        variant="plain"
+        size="xs"
+        onMouseEnter={onOpen}
+        onMouseLeave={onClose}
+        onClick={onToggle}
+      >
+        <GrCircleQuestion size={10} color="gray" />
+      </IconButton>
+    </Tooltip>
+  );
 };
 
 /**
@@ -41,8 +65,10 @@ export const SubnetStats: React.FC<SubnetStatsProps> = (props) => {
   const { isTestnet, tokenSymbol } = props;
 
   // =============== VARIABLES
-  const projectID = SUBNET_CONFIG.subnetID;
+  const subnetConfig = getSubnetConfig(isTestnet);
+  const projectID = subnetConfig.subnetID;
   const chain = useChainId();
+
   // =============== HOOKS
   const {
     data: builderData,
@@ -74,11 +100,10 @@ export const SubnetStats: React.FC<SubnetStatsProps> = (props) => {
 
   const totalUsers = data?.totalUsers || 0;
 
-  const stats = [
+  const stats: Stat[] = [
     {
       id: 0,
       label: "Total Staked",
-      icon: BsStack,
       value: (
         <>
           {toMOR(data?.totalStaked)}{" "}
@@ -87,11 +112,24 @@ export const SubnetStats: React.FC<SubnetStatsProps> = (props) => {
           </Text>
         </>
       ),
+      tooltip: "Total amount of tokens staked in this subnet.",
+    },
+    {
+      id: 4,
+      label: "Total Claimed",
+      value: (
+        <>
+          {toMOR(data?.totalClaimed)}{" "}
+          <Text as="span" fontSize={{ base: "xs", md: "sm" }}>
+            {tokenSymbol}
+          </Text>
+        </>
+      ),
+      tooltip: "Total amount of tokens claimed from this subnet.",
     },
     {
       id: 1,
       label: "Total Stakers",
-      icon: FaUsers,
       value: (
         <>
           {totalUsers}{" "}
@@ -100,11 +138,11 @@ export const SubnetStats: React.FC<SubnetStatsProps> = (props) => {
           </Text>
         </>
       ),
+      tooltip: "Total number of users staking in this subnet.",
     },
     {
       id: 2,
       label: "Lock Period",
-      icon: LuClock,
       value: (
         <>
           {formatDuration(withdrawPeriod)}{" "}
@@ -113,6 +151,8 @@ export const SubnetStats: React.FC<SubnetStatsProps> = (props) => {
           </Text>
         </>
       ),
+      tooltip:
+        "The duration you must wait after withdrawing before you can claim your MOR tokens.",
     },
   ];
 
@@ -123,9 +163,9 @@ export const SubnetStats: React.FC<SubnetStatsProps> = (props) => {
   if (error) return null;
 
   return (
-    <HStack width="full">
+    <HStack width="full" gap={4}>
       <Grid
-        templateColumns={"repeat(3, 1fr)"}
+        templateColumns={"repeat(4, 1fr)"}
         gap={{ base: 1, md: 6 }}
         width="full"
         bg="card"
@@ -143,26 +183,23 @@ export const SubnetStats: React.FC<SubnetStatsProps> = (props) => {
             p={{ base: 2, md: 4 }}
             justifyItems={"center"}
           >
-            <HStack gap={{ base: 1, md: 4 }}>
-              <Box
-                p={1}
-                borderRadius="full"
-                bg="whiteAlpha.950"
-                display={{ base: "none", md: "block" }}
-              >
-                <Box backgroundColor={"primary"} borderRadius={"full"} p={2}>
-                  <stat.icon size={20} />
-                </Box>
-              </Box>
+            <VStack gap={{ base: 1, md: 4 }}>
               <VStack alignItems="flex-start" gap={0.5}>
-                <Text color="gray.400" fontSize={{ base: "xs", md: "sm" }}>
-                  {stat.label}
-                </Text>
-                <Text fontWeight="bold" fontSize={{ base: "sm", md: "lg" }}>
+                <HStack gap={0} alignItems={"center"}>
+                  <Text
+                    color="secondaryText"
+                    fontWeight={"medium"}
+                    fontSize={{ base: "xs", md: "sm" }}
+                  >
+                    {stat.label}
+                  </Text>
+                  {stat.tooltip && <StatTooltip tooltip={stat.tooltip} />}
+                </HStack>
+                <Text fontWeight="bold" fontSize={{ base: "sm", md: "xl" }}>
                   {stat.value}
                 </Text>
               </VStack>
-            </HStack>
+            </VStack>
           </GridItem>
         ))}
       </Grid>

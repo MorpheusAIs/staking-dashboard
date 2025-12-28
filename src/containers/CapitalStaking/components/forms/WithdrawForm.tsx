@@ -59,6 +59,7 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
   const disabledCommonCondition =
     isProcessingWithdraw || !canWithdraw || !userAddress;
 
+  // =============== EVENTS
   const onHandleMaxAmount = () => {
     if (!actualDepositedAmount) return;
     setValue("withdrawAmount", actualDepositedAmount);
@@ -79,7 +80,7 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
               <InputGroup
                 endElement={
                   <HStack gap={3}>
-                    <Text fontSize="xs" color="gray.400">
+                    <Text fontSize="xs" color="secondaryText">
                       {parseFloat(actualDepositedAmount).toLocaleString(
                         "en-US",
                         {
@@ -137,6 +138,7 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
             css={styles}
             loading={isProcessingWithdraw}
             disabled={disabledCommonCondition}
+            loadingText={"Processing Withdraw..."}
           >
             Confirm Withdraw
           </Button>

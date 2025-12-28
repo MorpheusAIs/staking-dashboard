@@ -62,6 +62,7 @@ export const MetricsData: React.FC<MetricsDataProps> = memo((props) => {
     return metricsToDisplay.map((metric) => (
       <GridItem key={metric.index}>
         <Stack
+          height={"100%"}
           background={"card"}
           borderRadius={"md"}
           px={5}
@@ -95,7 +96,8 @@ export const MetricsData: React.FC<MetricsDataProps> = memo((props) => {
     <Grid
       templateColumns={{
         base: "repeat(1, 1fr)",
-        md: "repeat(4, 1fr)",
+        sm: "repeat(2, 1fr)",
+        lg: "repeat(4, 1fr)",
       }}
       width="full"
       gap={2.5}

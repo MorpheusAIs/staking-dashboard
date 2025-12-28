@@ -15,7 +15,7 @@ import { useEffect } from "react";
 import "staking-dashboard/app/global.css";
 import { toaster } from "staking-dashboard/components/ui/toaster";
 import { formatToOneDecimal } from "staking-dashboard/lib/helpers";
-import { SUBNET_CONFIG } from "staking-dashboard/lib/configs/subnet.config";
+import { getSubnetConfig } from "staking-dashboard/lib/helpers";
 import { buttonRecipe } from "staking-dashboard/lib/configs/theme";
 
 export type StakeFormProps = {
@@ -62,6 +62,7 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
   const {
     subnetId,
     isTestnet,
+    isStaking,
     tokenSymbol,
     isApproving,
     isSubmitting,
@@ -96,7 +97,8 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
   const styles = recipe({ visual: "solid" });
   const validStakeAmount = stakeAmount && parseFloat(stakeAmount) > 0;
   const approvalState = isApproving || (needsApproval && validStakeAmount);
-  const loadingState = isSubmitting;
+  const loadingState = isStaking || isApproving;
+  const subnetConfig = getSubnetConfig(isTestnet);
 
   // =============== EFFECTS
   // Check if approval is needed when stake amount changes
@@ -189,8 +191,8 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
 
     // if amount is below min deposit, invalid
     if (
-      SUBNET_CONFIG.minDeposit !== undefined &&
-      amount < SUBNET_CONFIG.minDeposit
+      subnetConfig.minDeposit !== undefined &&
+      amount < subnetConfig.minDeposit
     )
       return false;
 
@@ -245,7 +247,7 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
                   <Text fontSize={"sm"} fontWeight={"medium"}>
                     Amount to stake
                   </Text>
-                  <Text fontSize={"xs"} color="gray.400">
+                  <Text fontSize={"xs"} color="secondaryText">
                     Minimum deposit:
                     <span
                       style={{
@@ -253,7 +255,7 @@ export const StakeForm: React.FC<StakeFormProps> = (props) => {
                         color: "white",
                       }}
                     >
-                      {SUBNET_CONFIG.minDeposit} {tokenSymbol}
+                      {subnetConfig.minDeposit} {tokenSymbol}
                     </span>
                   </Text>
                 </Stack>

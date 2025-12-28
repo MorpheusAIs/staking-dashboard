@@ -37,21 +37,9 @@ export const useTotalMorEarned = (
       }
 
       try {
-        // Test with known working address if current user has no data
-        const testAddress = userAddress.toLowerCase();
-        const knownWorkingAddress =
-          "0x81039d59cd0fccd972262682c3711ddb5c69f907";
-
-        // @TODO remove this in final clean up
-        // TEMPORARY: Set to true to test with known address that has data to test out logic
-        const USE_TEST_ADDRESS = true;
-        const finalAddress = USE_TEST_ADDRESS
-          ? knownWorkingAddress
-          : testAddress;
-
         const result = await fetchQuery({
           query: GET_USER_ALL_CLAIM_EVENTS,
-          variables: { userAddress: finalAddress },
+          variables: { userAddress: userAddress.toLowerCase() },
           chain: mainnet.id,
         });
 

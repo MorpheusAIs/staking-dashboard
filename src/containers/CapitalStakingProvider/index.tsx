@@ -36,7 +36,7 @@ import {
 } from "wagmi";
 import { useAssetContractData } from "staking-dashboard/hooks/useAssetContractData";
 import { formatBigInt } from "staking-dashboard/lib/helpers";
-import { getSafeWalletUrlIfApplicable } from "staking-dashboard/lib/configs/safe-wallet-detection";
+import { getSafeWalletUrlIfApplicable } from "staking-dashboard/lib/configs/SafeWalletDetection";
 import DepositPoolAbi from "staking-dashboard/lib/abi/DepositPool.json";
 import ERC20Abi from "staking-dashboard/lib/abi/ERC20.json";
 import { toaster } from "staking-dashboard/components/ui/toaster";
@@ -49,6 +49,7 @@ import {
 } from "./helper";
 import SelectedAssetProvider from "../SelectedAssetProvider";
 import { useModalActions } from "../ModalProvider";
+import { set } from "lodash";
 
 export const CapitalStakingContext = createContext<CapitalStakingProps>(
   null as unknown as CapitalStakingProps
@@ -84,6 +85,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
   const [lastHandledLockClaimHash, setLastHandledLockClaimHash] = useState<
     `0x${string}` | null
   >(null);
+  const [isWithdrawFetching, setIsWithdrawFetching] = useState(false);
 
   // ============== WRITE CONTRACT
   const {
@@ -100,7 +102,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
     data: withdrawHash,
     writeContractAsync: withdrawAsync,
     isPending: isSendingWithdraw,
-  } = useWriteContract();
+  } = useWriteContract({});
   const {
     data: claimHash,
     writeContractAsync: claimAsync,
@@ -292,7 +294,8 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
       loading: string;
       success: string;
       error: string;
-    }
+    },
+    onErrorCallback?: (error: BaseError) => void
   ) => {
     const toastId = options.loading;
 
@@ -354,8 +357,10 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
       showToast({
         title: options.error,
         description: errorMessage,
+        id: toastId,
         type: "error",
       });
+      onErrorCallback?.(error as BaseError);
       throw error;
     }
   };
@@ -440,26 +445,6 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
         ? (referrerAddress as `0x${string}`)
         : zeroAddress;
 
-    console.log(`🏦 ${asset} Deposit Details:`, {
-      asset,
-      depositPoolAddress: assetData.config.depositPoolAddress,
-      tokenAddress: assetData.config.tokenAddress,
-      amount: amountString,
-      amountBigInt: amountBigInt.toString(),
-      lockDuration: lockDuration.toString(),
-      poolIndex: V2_REWARD_POOL_INDEX.toString(),
-      chainId: l1ChainId,
-      userBalance: assetData.userBalanceFormatted,
-      userAllowance: formatBigInt(
-        assetData.userAllowance,
-        assetInfo.metadata.decimals,
-        4
-      ),
-      decimals: assetInfo.metadata.decimals,
-      referrerAddress: referrerAddress || "none",
-      finalReferrerAddress,
-    });
-
     // Execute the stake transaction with toast handling
     await onHandleTransaction(
       () => {
@@ -467,29 +452,6 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
         const claimLockEnd =
           BigInt(Math.floor(Date.now() / 1000)) + lockDuration;
 
-        console.log("🕒 Final timestamp calculated right before transaction:", {
-          currentTimestamp: Math.floor(Date.now() / 1000),
-          lockDuration: lockDuration.toString(),
-          claimLockEnd: claimLockEnd.toString(),
-          claimLockEndDate: new Date(Number(claimLockEnd) * 1000).toISOString(),
-          asset,
-        });
-
-        // Log transaction arguments for debugging
-        console.log(`🔍 [${asset}] Final Transaction:`, {
-          asset,
-          contractAddress: assetData.config.depositPoolAddress,
-          functionName: "stake",
-          rewardPoolIndex: V2_REWARD_POOL_INDEX.toString(),
-          amount: amountBigInt.toString(),
-          amountHex: "0x" + amountBigInt.toString(16),
-          claimLockEnd: claimLockEnd.toString(),
-          originalAmountString: amountString,
-          assetDecimals: assetInfo.metadata.decimals,
-          expectedGasFee: "NORMAL ($2-5)",
-          contractAddress_full: assetData.config.depositPoolAddress,
-        });
-        // @TODO test thoroughly first
         return stakeAsync({
           address: assetData.config.depositPoolAddress,
           abi: DepositPoolAbi,
@@ -590,6 +552,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
   };
 
   const onHandleWithdraw = async (asset: AssetSymbol, amountString: string) => {
+    setIsWithdrawFetching(true);
     // Get asset configuration and data
     const assetInfo = getAssetConfig(asset, networkEnv);
 
@@ -602,8 +565,6 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
       asset
     ]?.refetch.userData();
 
-    console.log("data---------->", userPoolData);
-
     const amountBigInt = parseUnits(amountString, decimals);
 
     // Parse user pool data
@@ -611,10 +572,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
 
     if (userPoolData && Array.isArray(userPoolData)) {
       try {
-        console.log("here------------>");
-        console.log("userdeposited before", userDeposited);
         userDeposited = BigInt(userPoolData[1] || 0);
-        console.log("userdeposited after", userDeposited);
       } catch (e) {
         console.error(
           `Error parsing user pool data for ${assetData.config.symbol}:`,
@@ -622,8 +580,6 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
         );
       }
     }
-
-    console.log("user deposited final", userDeposited);
 
     // Perform withdrawal validations before proceeding
     validateWithdraw({
@@ -663,32 +619,15 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
           gas: BigInt(1200000),
         };
 
-        console.log("🚀 FINAL TRANSACTION PARAMETERS:", {
-          contractAddress: txParams.address,
-          functionName: txParams.functionName,
-          args: {
-            rewardPoolIndex: txParams.args[0].toString(),
-            amount: txParams.args[1].toString(),
-            amountHex: "0x" + txParams.args[1].toString(16),
-            amountEther: formatUnits(
-              txParams.args[1],
-              assetInfo!.metadata.decimals
-            ),
-          },
-          chainId: txParams.chainId,
-          gasLimit: txParams.gas.toString(),
-          userAddress,
-          expectedGasFeePaidBy: userAddress,
-          transactionWillExecuteAs: userAddress + " (wallet connected account)",
-          timestamp: Date.now(),
-        });
-
-        return withdrawAsync(txParams);
+        return await withdrawAsync(txParams);
       },
       {
         loading: `Requesting ${asset} withdrawal...`,
         success: `Successfully withdrew ${amountString} ${asset}!`,
         error: `${asset} withdrawal failed`,
+      },
+      () => {
+        setIsWithdrawFetching(false);
       }
     );
   };
@@ -733,8 +672,6 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
   // -------------- STAKE HANDLERS ----------------
   useEffect(() => {
     if (isStakeError && stakeError && stakeHash) {
-      console.error("Stake transaction failed:", stakeError);
-
       const errorMessage =
         (stakeError as BaseError)?.shortMessage || stakeError.message;
       const txUrl = getTransactionUrl(l1ChainId, stakeHash);
@@ -742,6 +679,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
       showToast({
         title: "Staking Failed",
         description: errorMessage || "Staking transaction failed",
+        id: "stake-error",
         type: "error",
         action: txUrl
           ? {
@@ -759,6 +697,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
       showToast({
         title: "Stake confimed!",
         description: "Your stake transaction has been confirmed",
+        id: "stake-success",
         type: "success",
         action: txUrl
           ? {
@@ -792,6 +731,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
 
       showToast({
         title: "Withdrawal confirmed!",
+        id: "withdraw-success",
         description: "Your withdrawal transaction has been confirmed",
         type: "success",
         action: txUrl
@@ -820,6 +760,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
       showToast({
         title: "Withdrawal Failed",
         description: errorMessage,
+        id: "withdraw-error",
         type: "error",
         action: txUrl
           ? {
@@ -840,6 +781,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
         title: "Claim confirmed!",
         description: "Your claim transaction has been confirmed",
         type: "success",
+        id: "claim-success",
         action: txUrl
           ? {
               label: "View Transaction",
@@ -868,6 +810,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
       showToast({
         title: "Claim Failed",
         description: errorMessage,
+        id: "claim-error",
         type: "error",
         action: txUrl
           ? {
@@ -894,6 +837,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
         title: "Lock period update confirmed!",
         description: "Your lock period update transaction has been confirmed",
         type: "success",
+        id: "lock-claim-success",
         action: txUrl
           ? {
               label: "View Transaction",
@@ -914,7 +858,6 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
 
   useEffect(() => {
     if (isLockClaimError && lockClaimError && lockClaimHash) {
-      console.error("Lock claim transaction failed:", lockClaimError);
       const errorMessage =
         (lockClaimError as BaseError)?.shortMessage || lockClaimError.message;
       const txUrl = getTransactionUrl(l1ChainId || 1, lockClaimHash);
@@ -922,6 +865,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
       showToast({
         title: "Claim Failed",
         description: errorMessage,
+        id: "lock-claim-error",
         type: "error",
         action: txUrl
           ? {
@@ -942,6 +886,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
     ) {
       showToast({
         title: "Approval successful!",
+        id: "approval-success",
         description: "Your approval transaction has been confirmed",
         type: "success",
         action: {
@@ -978,8 +923,9 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
 
       showToast({
         title: "Approval failed",
-        description: approvalError?.message || "Approval transaction failed",
+        description: errorMessage || "Approval transaction failed",
         type: "error",
+        id: "approval-error",
         action: txUrl
           ? {
               label: "View Transaction",
@@ -997,7 +943,8 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
     isSendingStake ||
     isConfirmingStake;
 
-  const isProcessingWithdraw = isSendingWithdraw || isConfirmingWithdraw;
+  const isProcessingWithdraw =
+    isSendingWithdraw || isConfirmingWithdraw || isWithdrawFetching;
   const isProcessingClaim = isSendingClaim || isConfirmingClaim;
   const isProcessingChangeLock = isSendingLockClaim || isConfirmingLockClaim;
   const totalClaimableAmountFormatted = formatBigInt(

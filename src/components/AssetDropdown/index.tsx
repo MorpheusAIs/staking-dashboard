@@ -1,14 +1,10 @@
 "use client";
 import { Box, HStack, Menu, Text } from "@chakra-ui/react";
-import { ContractAddresses } from "staking-dashboard/@types/common";
 import { AssetSymbol } from "staking-dashboard/lib/configs/asset";
-import { getAssetsForNetwork } from "staking-dashboard/lib/configs/asset";
 import { getContractAddress } from "staking-dashboard/lib/networks";
-import { useAccount, useBalance, useChainId } from "wagmi";
 import { AssetIcon } from "../Icons";
 import { IoChevronDown } from "react-icons/io5";
 import { AssetData } from "staking-dashboard/@types/useCapitalStaking";
-import { formatUnits } from "viem";
 import { formatBalanceDisplay } from "staking-dashboard/lib/helpers";
 import { depositPoolMapping } from "staking-dashboard/lib/configs/constants";
 
@@ -18,7 +14,6 @@ export type AssetDropdownProps = {
   networkEnv: "mainnet" | "testnet";
   selectedAsset: AssetSymbol;
   onHandleSetSelectedAsset: (asset: AssetSymbol) => void;
-
   getUserBalanceForAsset: (asset: AssetSymbol) => {
     formatted: string;
     balance: bigint;

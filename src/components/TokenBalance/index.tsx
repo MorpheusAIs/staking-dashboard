@@ -1,3 +1,4 @@
+"use client";
 import { HStack, Text } from "@chakra-ui/react";
 import { ArbitrumIcon } from "../Icons/ArbitrumIcon";
 import { useAccount, useChainId } from "wagmi";
@@ -7,14 +8,12 @@ import { formatBalance } from "staking-dashboard/lib/helpers";
 import { BaseIcon } from "../Icons/BaseIcon";
 import { CHAIN_ID } from "staking-dashboard/lib/configs/constants";
 
-export type TokenBalanceProps = {};
-
 /**
  * ===========================
  * MAIN
  * ===========================
  */
-export const TokenBalance: React.FC<TokenBalanceProps> = () => {
+export const TokenBalance: React.FC = () => {
   // =============== HOOKS
   const { address } = useAccount();
   const chainId = useChainId();

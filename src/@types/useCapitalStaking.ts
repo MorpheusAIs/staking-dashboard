@@ -18,13 +18,13 @@ type PoolInfoData = {
   isPublic: boolean;
 };
 
-interface AssetConfig {
+type AssetConfig = {
   symbol: AssetSymbol;
   depositPoolAddress: `0x${string}`;
   tokenAddress: `0x${string}`;
   decimals: number;
   icon: string;
-}
+};
 
 export type AssetData = {
   symbol: AssetSymbol;

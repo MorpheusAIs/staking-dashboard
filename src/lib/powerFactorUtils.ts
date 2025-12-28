@@ -25,7 +25,6 @@ export const POWER_FACTOR_CONSTANTS = {
  */
 export function durationToSeconds(value: string, unit: TimeUnit): bigint {
   const numValue = parseInt(value, 10);
-  console.log("num value", numValue);
   if (isNaN(numValue) || numValue <= 0) return BigInt(0);
 
   let diffSeconds: number;

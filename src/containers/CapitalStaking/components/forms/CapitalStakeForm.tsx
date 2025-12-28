@@ -6,9 +6,6 @@ import {
   Text,
   VStack,
   Input,
-  HStack,
-  Menu,
-  Box,
   useRecipe,
 } from "@chakra-ui/react";
 import { Controller } from "react-hook-form";
@@ -21,7 +18,9 @@ import { buttonRecipe } from "staking-dashboard/lib/configs/theme";
 import { useNetwork } from "../../../NetworkProvider";
 import { mainnet } from "viem/chains";
 import { useContractPowerFactor } from "staking-dashboard/hooks/useContractPowerFactor";
-import LockPeriodSelector from "staking-dashboard/components/LockPeriodSelector";
+import LockPeriodSelector, {
+  LockPeriodDuration,
+} from "staking-dashboard/components/LockPeriodSelector";
 
 export type CapitalStakingFormProps = {
   assets: Record<AssetSymbol, AssetData>;
@@ -29,8 +28,10 @@ export type CapitalStakingFormProps = {
   networkEnv: "mainnet" | "testnet";
   selectedAsset: AssetSymbol;
   onHandleSetSelectedAsset: (asset: AssetSymbol) => void;
-  // @TODO fix any
-  onSubmit: (data: any) => void;
+  onSubmit: (data: {
+    depositAmount: string;
+    lockDuration: LockPeriodDuration;
+  }) => void;
   form: any;
   isProcessingDeposit: boolean;
   currentlyNeedsApproval: boolean;
@@ -120,7 +121,10 @@ export const CapitalStakingForm: React.FC<CapitalStakingFormProps> = (
     }
   };
 
-  const onHandleSubmit = async (data: any) => {
+  const onHandleSubmit = async (data: {
+    depositAmount: string;
+    lockDuration: LockPeriodDuration;
+  }) => {
     if (!isOnMainnet) {
       await switchToChain(mainnet.id);
       return;
@@ -185,7 +189,7 @@ export const CapitalStakingForm: React.FC<CapitalStakingFormProps> = (
         </Stack>
         {warning && (
           <Stack mt={1}>
-            <Text fontSize={"xs"} color="gray.400">
+            <Text fontSize={"xs"} color="secondaryText">
               {warning}
             </Text>
           </Stack>
@@ -205,7 +209,7 @@ export const CapitalStakingForm: React.FC<CapitalStakingFormProps> = (
   return (
     <Stack width="full">
       <Stack pb={4}>
-        <Text color="gray.400">
+        <Text color="secondaryText">
           Deposit an asset to start earning MOR rewards. Power factor activates
           after ~7-8 months and reaches maximum x10.7 at ~7 years from now.
         </Text>
@@ -262,7 +266,7 @@ export const CapitalStakingForm: React.FC<CapitalStakingFormProps> = (
                 />
               </InputGroup>
 
-              <Text fontSize="xs" color="gray.400" lineHeight="1.4" mb={1}>
+              <Text fontSize="xs" color="secondaryText" lineHeight="1.4" mb={1}>
                 Deposits are locked for the first 7 days.
               </Text>
               {errors.depositAmount && (
@@ -288,6 +292,7 @@ export const CapitalStakingForm: React.FC<CapitalStakingFormProps> = (
             css={styles}
             loading={isProcessingDeposit}
             disabled={buttonDisableCondition}
+            loadingText="Processing Deposit..."
           >
             {renderButtonText()}
           </Button>

@@ -13,11 +13,12 @@ import {
   formatDailyEmissions,
   formatNumber,
 } from "../../helper";
-import { VStack } from "@chakra-ui/react";
+import { Text, VStack } from "@chakra-ui/react";
 import { useTotalMorEarned } from "staking-dashboard/hooks/useTotalMorEarned";
 import MetricsData from "./MetricsData";
 import StakingTable from "../tables/StakingTable";
 import { useAllDailyEmissions } from "staking-dashboard/hooks/useAllDailyEmissions";
+import WalletConnectButton from "staking-dashboard/components/WalletConnectButton";
 
 // DefiLlama token addresses for direct API calls (Ethereum mainnet + LINK)
 const DEFILLAMA_TOKEN_ADDRESSES = {
@@ -271,17 +272,38 @@ export const StakingPosition = memo(() => {
 
   const loading = isLoading || isLoadingPrices;
 
+  // =============== RENDER
+  const renderView = () => {
+    if (!userAddress) {
+      return (
+        <VStack
+          width={"full"}
+          py={4}
+          justifyContent="center"
+          alignItems={"center"}
+          gap={8}
+        >
+          <Text color="secondaryText">
+            Connect your wallet to vew your staking position
+          </Text>
+          <WalletConnectButton enableAddress={false} />
+        </VStack>
+      );
+    }
+    return (
+      <VStack pt={4} width="full" gap={3}>
+        <MetricsData metrics={freshMetrics} isLoading={loading} />
+        <StakingTable
+          userAsset={unsortedUserAssets}
+          isLoading={loading}
+          isAnyActionProcessing={isAnyActionProcessing}
+        />
+      </VStack>
+    );
+  };
+
   // =============== VIEWS
-  return (
-    <VStack pt={4} width="full" gap={3}>
-      <MetricsData metrics={freshMetrics} isLoading={loading} />
-      <StakingTable
-        userAsset={unsortedUserAssets}
-        isLoading={loading}
-        isAnyActionProcessing={isAnyActionProcessing}
-      />
-    </VStack>
-  );
+  return renderView();
 });
 
 /**

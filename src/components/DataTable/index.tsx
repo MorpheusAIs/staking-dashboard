@@ -1,3 +1,5 @@
+"use client";
+
 import { Box, Table } from "@chakra-ui/react";
 import { UserAsset } from "staking-dashboard/containers/CapitalStaking/type";
 import LoadingTable from "../LoadingTable";
@@ -50,7 +52,7 @@ export const DataTable: React.FC<DataTableProps> = (props) => {
       bg="card"
       overflowX="auto"
     >
-      <Table.ScrollArea>
+      <Table.ScrollArea maxHeight={"220px"}>
         <Table.Root size="md" variant="outline">
           <Table.Header bg="card">
             <Table.Row>

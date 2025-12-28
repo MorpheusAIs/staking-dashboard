@@ -112,6 +112,7 @@ export const WithdrawModal: React.FC<WithdrawModalProps> = (props) => {
     <Dialog.Root
       open={open}
       onOpenChange={(e) => {
+        if (isProcessingWithdraw) return;
         onHandleOpen(e.open);
       }}
       onExitComplete={() => {

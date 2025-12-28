@@ -11,9 +11,9 @@ import {
   useRecipe,
 } from "@chakra-ui/react";
 import { useEffect } from "react";
-import DepositDialog from "./components/modals/DepositDialog";
+import DepositDialog from "./components/modals/CapitalStakeDialog";
 import { buttonRecipe } from "staking-dashboard/lib/configs/theme";
-import { useChainId, useSwitchChain } from "wagmi";
+import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { mainnet } from "viem/chains";
 import StakingPosition from "./components/views/StakingPosition";
 import WithdrawModal from "./components/modals/WithdrawModal";
@@ -32,6 +32,7 @@ export const CapitalStaking = () => {
   const { switchChain } = useSwitchChain();
   const { activeModal } = useModalState();
   const { onHandleSetModal } = useModalActions();
+  const { isConnected } = useAccount();
 
   // =============== VARIABLES
   const recipe = useRecipe({ recipe: buttonRecipe });
@@ -101,12 +102,16 @@ export const CapitalStaking = () => {
         borderColor="border"
         alignItems="center"
       >
-        <HStack width="full" justifyContent={"space-between"}>
+        <HStack
+          width="full"
+          justifyContent={"space-between"}
+          gap={{ base: 4, md: 0 }}
+        >
           <VStack alignItems={"flex-start"} gap={2} width={"full"}>
             <Text fontWeight="medium" fontSize={{ base: "lg", md: "xl" }}>
               Capital Staking
             </Text>
-            <Text fontSize="sm" color="gray.400">
+            <Text fontSize="sm" color="secondaryText">
               Stake tokens to earn MOR rewards on Ethereum Mainnet
             </Text>
           </VStack>
@@ -115,13 +120,13 @@ export const CapitalStaking = () => {
             alignItems="center"
             justifyContent={"center"}
             px={{ base: 5, md: 8 }}
-            paddingRight={10}
+            paddingRight={{ md: 10 }}
             py={1.5}
             border="1px solid"
             borderColor="border"
             borderRadius="md"
             bg="card"
-            minW={"150px"}
+            minW={{ md: "150px" }}
             color="white"
           >
             <HStack
@@ -164,6 +169,7 @@ export const CapitalStaking = () => {
               css={styles}
               px={5}
               onClick={() => onHandleOpenDepositDialog(true)}
+              disabled={!isConnected || chainId !== mainnet.id}
             >
               Deposit
             </Button>

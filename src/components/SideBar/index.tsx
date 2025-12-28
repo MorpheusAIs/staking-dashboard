@@ -7,6 +7,7 @@ import {
   SideBarItems,
 } from "staking-dashboard/lib/configs/constants";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 
 type SideBarContentProps = StackProps & {
   onHandleClick?: () => void;
@@ -22,13 +23,6 @@ export const SideBarContent: React.FC<SideBarContentProps> = (props) => {
   const { onHandleClick, ...restProps } = props;
   // =============== HOOKS
   const pathname = usePathname();
-  const navigate = useRouter();
-
-  // =============== EVENTS
-  const handleClick = (path: string) => {
-    navigate.push(path);
-    onHandleClick?.();
-  };
 
   // =============== RENDER FUNCTIONS
   const renderSideBarContent = () => {
@@ -36,42 +30,48 @@ export const SideBarContent: React.FC<SideBarContentProps> = (props) => {
       const isCurrentPath = pathname === item.path;
 
       return (
-        <HStack
+        <Link
+          passHref
           key={item.id}
-          bg={isCurrentPath ? "card" : "transparent"}
-          width="full"
-          py={2}
-          gap={4}
-          onClick={() => handleClick(item.path)}
-          borderRadius={"md"}
-          px={4}
-          justifyContent="flex-start"
-          alignItems="center"
-          transition="all 0.2s ease-in-out"
-          border="1px solid"
-          borderColor={isCurrentPath ? "border" : "transparent"}
-          cursor="pointer"
-          _hover={{
-            borderColor: "border",
-            bg: "card",
-            "& .icon-box": {
-              bg: "primary",
-            },
-          }}
+          href={item.path}
+          onClick={onHandleClick}
+          style={{ width: "100%" }}
         >
-          <Stack
-            className="icon-box"
-            bg={isCurrentPath ? "primary" : "card"}
-            p={2}
+          <HStack
+            bg={isCurrentPath ? "card" : "transparent"}
+            width="full"
+            py={2}
+            gap={4}
+            borderRadius={"md"}
+            px={4}
+            justifyContent="flex-start"
+            alignItems="center"
             transition="all 0.2s ease-in-out"
-            borderRadius="md"
             border="1px solid"
-            borderColor={isCurrentPath ? "transparent" : "border"}
+            borderColor={isCurrentPath ? "border" : "transparent"}
+            cursor="pointer"
+            _hover={{
+              borderColor: "border",
+              bg: "card",
+              "& .icon-box": {
+                bg: "primary",
+              },
+            }}
           >
-            {item.icon}
-          </Stack>
-          <Text fontWeight="medium">{item.title}</Text>
-        </HStack>
+            <Stack
+              className="icon-box"
+              bg={isCurrentPath ? "primary" : "card"}
+              p={2}
+              transition="all 0.2s ease-in-out"
+              borderRadius="md"
+              border="1px solid"
+              borderColor={isCurrentPath ? "transparent" : "border"}
+            >
+              {item.icon}
+            </Stack>
+            <Text fontWeight="medium">{item.title}</Text>
+          </HStack>
+        </Link>
       );
     });
   };

@@ -3,7 +3,7 @@ import {
   durationToSeconds,
   getMaxAllowedValue,
   getMinAllowedValue,
-} from "staking-dashboard/lib/power-factor-utils";
+} from "staking-dashboard/lib/powerFactorUtils";
 import { parseUnits } from "viem";
 import * as yup from "yup";
 
@@ -13,22 +13,16 @@ import { AssetSymbol } from "staking-dashboard/lib/configs/asset";
 import {
   BuildUserAssetArgs,
   BuildUserAssetReturn,
+  EnsValidationResult,
   MinimalAssetData,
+  SchemaValidation,
 } from "./type";
 import { parseDepositAmount } from "staking-dashboard/lib/helpers";
 
 export const withdrawSchemaValidation = ({
   canWithdraw,
   currentAsset,
-}: {
-  canWithdraw: boolean;
-  currentAsset: {
-    config: {
-      decimals: number;
-    };
-    userDeposited: bigint;
-  };
-}) => {
+}: SchemaValidation) => {
   return yup.object({
     withdrawAmount: yup
       .string()
@@ -67,19 +61,90 @@ export const withdrawSchemaValidation = ({
   });
 };
 
+export const rewardsSchemaValidation = ({
+  currentAsset,
+  selectedAsset,
+}: SchemaValidation) => {
+  return yup.object({
+    lockDuration: yup.object({
+      duration: yup
+        .string()
+        .typeError("Duration is required")
+        .required("Duration is required")
+        .test("min-lock-period", "Lock period too short", function (value) {
+          if (!value) return true;
+          const { unit } = this.parent;
+          const path = this.path;
+          const numValue = parseInt(value, 10);
+          if (isNaN(numValue)) return false;
+
+          if (isNaN(numValue) || numValue <= 0)
+            return this.createError({ path, message: "Enter a valid number" });
+
+          const minAllowed = getMinAllowedValue(unit);
+          if (numValue < minAllowed) {
+            return this.createError({
+              path,
+              message: `Minimum ${minAllowed} ${unit} required for MOR rewards`,
+            });
+          }
+
+          return true;
+        })
+        .test("max-lock-period", "Lock period too long", function (value) {
+          if (!value) return true;
+          const { unit } = this.parent;
+          const path = this.path;
+          const numValue = parseInt(value, 10);
+          if (isNaN(numValue)) return false;
+
+          if (isNaN(numValue) || numValue <= 0) return true;
+
+          const maxAllowed = getMaxAllowedValue(unit);
+          if (numValue > maxAllowed) {
+            return this.createError({
+              path,
+              message: `Maximum ${maxAllowed} ${unit} allowed`,
+            });
+          }
+
+          return true;
+        })
+        .test("lock-period-error", "Invalid lock period", function (value) {
+          const { unit, duration } = this.parent;
+          const path = this.path;
+
+          const currentTimestamp = Math.floor(Date.now() / 1000);
+          const lockDurationSeconds = durationToSeconds(duration, unit);
+          const proposedClaimLockEnd =
+            BigInt(currentTimestamp) + lockDurationSeconds;
+          const existingLockEnd = currentAsset.claimUnlockTimestamp;
+          if (
+            existingLockEnd &&
+            existingLockEnd > BigInt(0) &&
+            proposedClaimLockEnd < existingLockEnd
+          ) {
+            const existingDate = new Date(Number(existingLockEnd) * 1000);
+            return this.createError({
+              path,
+              message: `Lock period too short. Your existing ${selectedAsset} position is locked until ${existingDate.toLocaleDateString()}. New deposits must have a lock period that ends on or after this date.`,
+            });
+          }
+
+          return true;
+        }),
+      unit: yup
+        .mixed<"Days" | "Months" | "Years">()
+        .oneOf(["Days", "Months", "Years"])
+        .required("Unit is required"),
+    }),
+  });
+};
+
 export const depositSchemaValidation = ({
   currentAsset,
   selectedAsset,
-}: {
-  currentAsset: {
-    config: {
-      decimals: number;
-    };
-    claimUnlockTimestamp?: bigint;
-    userBalance: bigint;
-  };
-  selectedAsset: string;
-}) => {
+}: SchemaValidation) => {
   return yup.object({
     depositAmount: yup
       .string()
@@ -177,11 +242,6 @@ export const depositSchemaValidation = ({
     }),
   });
 };
-
-export interface EnsValidationResult {
-  isValid: boolean;
-  error: string | null;
-}
 
 /**
  * Validate a referrer input (ENS or Ethereum address)
@@ -304,7 +364,6 @@ export const buildUserAsset = (
 // Custom formatting for daily emissions and lifetime earnings (same logic)
 export const formatDailyEmissions = (value: number): string => {
   const formatted = value < 0.01 ? value.toFixed(4) : value.toFixed(2);
-  console.log(`📊 Formatting daily emissions: ${value} → "${formatted}"`);
   return formatted;
 };
 

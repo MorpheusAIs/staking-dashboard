@@ -5,7 +5,7 @@ import { toaster } from "staking-dashboard/components/ui/toaster";
 // as the toast wouldn't work in useEffect and throw flushAsync error
 export const showToast = (args: {
   method?: "create" | "update";
-  id?: string;
+  id: string;
   title?: string;
   description?: string;
   type: "success" | "error" | "info" | "loading" | "warning";

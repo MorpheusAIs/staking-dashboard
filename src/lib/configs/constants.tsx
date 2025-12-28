@@ -1,10 +1,11 @@
 import { BsStack } from "react-icons/bs";
 import { FaArrowTrendUp } from "react-icons/fa6";
 import { FaTelegramPlane } from "react-icons/fa";
-import { CiMail } from "react-icons/ci";
+import { IoMailOutline } from "react-icons/io5";
 import { FaXTwitter } from "react-icons/fa6";
 import { arbitrum, arbitrumSepolia, base, sepolia } from "wagmi/chains";
 import { ContractAddresses } from "staking-dashboard/@types/common";
+import { SUBNET_CONFIG } from "./subnet.config";
 
 export const SideBarItems = [
   {
@@ -25,20 +26,20 @@ export const SocialMediaLinks = [
   {
     id: 1,
     title: "Telegram",
-    url: "",
+    url: SUBNET_CONFIG.socialMediaLinks?.telegram || "",
     icon: <FaTelegramPlane size={22} />,
   },
   {
     id: 2,
     title: "Twitter",
-    url: "",
+    url: SUBNET_CONFIG.socialMediaLinks?.x || "",
     icon: <FaXTwitter size={22} />,
   },
   {
     id: 3,
     title: "Email",
-    url: "",
-    icon: <CiMail size={22} />,
+    url: `mailto:${SUBNET_CONFIG.socialMediaLinks?.email || ""}`,
+    icon: <IoMailOutline size={24} />,
   },
 ];
 

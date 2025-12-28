@@ -5,7 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useCapitalStaking } from "staking-dashboard/hooks/useCapitalStaking";
 import CapitalStakingForm from "../forms/CapitalStakeForm";
-import { durationToSeconds } from "staking-dashboard/lib/power-factor-utils";
+import {
+  durationToSeconds,
+  TimeUnit,
+} from "staking-dashboard/lib/powerFactorUtils";
 import { SUBNET_CONFIG } from "staking-dashboard/lib/configs/subnet.config";
 import {
   depositSchemaValidation,
@@ -15,6 +18,7 @@ import { useEnsAddress } from "wagmi";
 import { showToast } from "staking-dashboard/lib/showToast";
 import { useSelectedAsset } from "../../../SelectedAssetProvider";
 import { toaster } from "staking-dashboard/components/ui/toaster";
+import { LockPeriodDuration } from "staking-dashboard/components/LockPeriodSelector";
 
 export type DepositDialogProps = {
   open: boolean;
@@ -63,7 +67,7 @@ export const DepositDialog: React.FC<DepositDialogProps> = (props) => {
       depositAmount: "",
       lockDuration: {
         duration: "7",
-        unit: "Days" as "Days" | "Months" | "Years",
+        unit: "Days" as TimeUnit,
       },
     },
   });
@@ -104,8 +108,6 @@ export const DepositDialog: React.FC<DepositDialogProps> = (props) => {
     },
   });
 
-  console.log("resolvedAddress:", resolvedAddress);
-
   // =============== EFFECTS
   // Check approval status when dependencies change
   useEffect(() => {
@@ -139,7 +141,7 @@ export const DepositDialog: React.FC<DepositDialogProps> = (props) => {
   // =============== EVENTS
   const onSubmit = async (data: {
     depositAmount: string;
-    lockDuration: { duration: string; unit: "Days" | "Months" | "Years" };
+    lockDuration: LockPeriodDuration;
   }) => {
     const { depositAmount, lockDuration } = data;
 
@@ -162,29 +164,6 @@ export const DepositDialog: React.FC<DepositDialogProps> = (props) => {
         // Use resolved address if available, otherwise use the original input
         const finalReferrerAddress =
           resolvedAddress || SUBNET_CONFIG.referralAddress;
-
-        // @TODO can be removed after testing
-        // Debug lock period validation
-        const currentTimestamp = Math.floor(Date.now() / 1000);
-        const proposedClaimLockEnd =
-          BigInt(currentTimestamp) + lockDuration.duration;
-        // Get existing lock end for debugging - Using dynamic assets system
-        const existingLockEnd = assets[selectedAsset]?.claimUnlockTimestamp;
-
-        console.log("🏦 Proceeding with deposit:", {
-          selectedAsset,
-          amount,
-          lockDuration: lockDurationInSeconds,
-          currentTimestamp,
-          proposedClaimLockEnd: proposedClaimLockEnd.toString(),
-          existingLockEnd: existingLockEnd?.toString(),
-          proposedDate: new Date(
-            Number(proposedClaimLockEnd) * 1000
-          ).toISOString(),
-          existingDate: existingLockEnd
-            ? new Date(Number(existingLockEnd) * 1000).toISOString()
-            : "none",
-        });
 
         await onHandleDeposit(
           selectedAsset,
@@ -245,6 +224,7 @@ export const DepositDialog: React.FC<DepositDialogProps> = (props) => {
       lazyMount
       open={open}
       onOpenChange={(e) => {
+        if (isProcessingDeposit) return;
         onHandleOpen(e.open);
       }}
       onExitComplete={() => {

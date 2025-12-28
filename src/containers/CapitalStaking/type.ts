@@ -55,3 +55,14 @@ export type Metrics = {
 };
 
 export type AssetPriceMap = Partial<Record<AssetSymbol, number>>;
+
+export type EnsValidationResult = {
+  isValid: boolean;
+  error: string | null;
+};
+
+export type SchemaValidation = {
+  canWithdraw?: boolean;
+  currentAsset: AssetData;
+  selectedAsset?: string;
+};

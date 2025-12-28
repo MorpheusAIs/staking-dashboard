@@ -64,7 +64,7 @@ export const StakeMorRewardsModal: React.FC<StakeMorRewardsModalProps> = (
             </Dialog.Header>
             <Dialog.Body>
               <Stack gap={4}>
-                <Text color="gray.400">
+                <Text color="secondaryText">
                   Earn additional benefits and support the growing ecosystem of
                   developers building on Morpheus by staking your MOR to a
                   builder subnet.

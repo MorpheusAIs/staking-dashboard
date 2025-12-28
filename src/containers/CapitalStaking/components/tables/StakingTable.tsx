@@ -59,7 +59,6 @@ export const StakingTable: React.FC<StakingTableProps> = (props) => {
     }
 
     if (assetSymbol) {
-      console.log("set data------------->");
       onHandleSetSelectedAsset(assetSymbol);
     }
     onHandleSetModal(modalType);
@@ -191,6 +190,7 @@ export const StakingTable: React.FC<StakingTableProps> = (props) => {
                 justifyContent={"center"}
                 alignItems={"center"}
                 width={"full"}
+                disabled={isAnyActionProcessing}
               >
                 <IconButton variant={"plain"} size={"xs"}>
                   <HiDotsHorizontal />
@@ -201,10 +201,10 @@ export const StakingTable: React.FC<StakingTableProps> = (props) => {
                   <Menu.Content>
                     <Menu.Item
                       value="stake"
-                      disabled={!canClaim}
+                      disabled={!canClaim || isAnyActionProcessing}
                       cursor={!canClaim ? "not-allowed" : "pointer"}
                       onClick={() => {
-                        if (!canClaim) return;
+                        if (!canClaim || isAnyActionProcessing) return;
                         onHandleOpenModal("stakeMorRewards", asset.assetSymbol);
                       }}
                     >
@@ -220,10 +220,10 @@ export const StakingTable: React.FC<StakingTableProps> = (props) => {
                     </Menu.Item>
                     <Menu.Item
                       value="withdraw"
-                      disabled={!canWithdraw}
+                      disabled={!canWithdraw || isAnyActionProcessing}
                       cursor={!canWithdraw ? "not-allowed" : "pointer"}
                       onClick={() => {
-                        if (!canWithdraw) return;
+                        if (!canWithdraw || isAnyActionProcessing) return;
                         onHandleOpenModal("withdraw", asset.assetSymbol);
                       }}
                     >
@@ -239,10 +239,11 @@ export const StakingTable: React.FC<StakingTableProps> = (props) => {
                     </Menu.Item>
                     <Menu.Item
                       value="lock"
-                      disabled={notAvailableToClaim}
+                      disabled={notAvailableToClaim || isAnyActionProcessing}
                       cursor={notAvailableToClaim ? "not-allowed" : "pointer"}
                       onClick={() => {
-                        if (notAvailableToClaim) return;
+                        if (notAvailableToClaim || isAnyActionProcessing)
+                          return;
                         onHandleOpenModal("lockMorRewards", asset.assetSymbol);
                       }}
                     >
@@ -258,10 +259,10 @@ export const StakingTable: React.FC<StakingTableProps> = (props) => {
                     </Menu.Item>
                     <Menu.Item
                       value="claim"
-                      disabled={!canClaim}
+                      disabled={!canClaim || isAnyActionProcessing}
                       cursor={!canClaim ? "not-allowed" : "pointer"}
                       onClick={() => {
-                        if (!canClaim) return;
+                        if (!canClaim || isAnyActionProcessing) return;
                         onHandleOpenModal("claimMorRewards", asset.assetSymbol);
                       }}
                     >
@@ -282,103 +283,6 @@ export const StakingTable: React.FC<StakingTableProps> = (props) => {
           );
         },
       },
-      // {
-      //   id: "actions",
-      //   header: "Actions",
-      //   cell: (asset) => (
-      //     <DropdownMenu
-      //       open={openDropdownId === asset.id}
-      //       onOpenChange={(open) => onDropdownOpenChangeAction(asset.id, open)}
-      //     >
-      //       <DropdownMenuTrigger asChild>
-      //         <Button
-      //           variant="ghost"
-      //           size="icon"
-      //           className={`h-8 w-8 p-0 rounded-lg transition-all duration-200 ${
-      //             hoveredRowId === asset.id
-      //               ? "animate-pulse ring-2 ring-emerald-500 ring-opacity-75"
-      //               : ""
-      //           }`}
-      //           disabled={
-      //             isAnyActionProcessing ||
-      //             isModalTransitioning ||
-      //             isDropdownTransitioning
-      //           }
-      //         >
-      //           <Ellipsis className="h-4 w-4" />
-      //         </Button>
-      //       </DropdownMenuTrigger>
-      //       <DropdownMenuContent align="end" className="mt-2 rounded-lg">
-      //         <DropdownMenuItem
-      //           onClick={() =>
-      //             onDropdownActionAction("stakeMorRewards", asset.assetSymbol)
-      //           }
-      //           disabled={
-      //             isAnyActionProcessing ||
-      //             isModalTransitioning ||
-      //             !asset.canClaim
-      //           }
-      //           className={
-      //             !asset.canClaim ? "text-gray-500 cursor-not-allowed" : ""
-      //           }
-      //         >
-      //           <TrendingUp className="mr-2 h-4 w-4" />
-      //           {isModalTransitioning ? "Opening..." : "Stake Rewards"}
-      //         </DropdownMenuItem>
-      //         <DropdownMenuItem
-      //           onClick={() =>
-      //             onDropdownActionAction("withdraw", asset.assetSymbol)
-      //           }
-      //           disabled={
-      //             isAnyActionProcessing ||
-      //             isModalTransitioning ||
-      //             !asset.canWithdraw
-      //           }
-      //           className={
-      //             !asset.canWithdraw ? "text-gray-500 cursor-not-allowed" : ""
-      //           }
-      //         >
-      //           <ArrowDownToLine className="mr-2 h-4 w-4" />
-      //           {isModalTransitioning ? "Opening..." : "Withdraw"}
-      //         </DropdownMenuItem>
-      //         <DropdownMenuItem
-      //           onClick={() =>
-      //             onDropdownActionAction("lockMorRewards", asset.assetSymbol)
-      //           }
-      //           disabled={
-      //             isAnyActionProcessing ||
-      //             isModalTransitioning ||
-      //             asset.availableToClaim <= 0
-      //           }
-      //           className={
-      //             asset.availableToClaim <= 0
-      //               ? "text-gray-500 cursor-not-allowed"
-      //               : ""
-      //           }
-      //         >
-      //           <Lock className="mr-2 h-4 w-4" />
-      //           {isModalTransitioning ? "Opening..." : "Lock Rewards"}
-      //         </DropdownMenuItem>
-      //         <DropdownMenuItem
-      //           onClick={() =>
-      //             onDropdownActionAction("claimMorRewards", asset.assetSymbol)
-      //           }
-      //           disabled={
-      //             isAnyActionProcessing ||
-      //             isModalTransitioning ||
-      //             !asset.canClaim
-      //           }
-      //           className={
-      //             !asset.canClaim ? "text-gray-500 cursor-not-allowed" : ""
-      //           }
-      //         >
-      //           <HandCoins className="mr-2 h-4 w-4" />
-      //           {isModalTransitioning ? "Opening..." : "Claim Rewards"}
-      //         </DropdownMenuItem>
-      //       </DropdownMenuContent>
-      //     </DropdownMenu>
-      //   ),
-      // },
     ],
     [userAsset]
   );

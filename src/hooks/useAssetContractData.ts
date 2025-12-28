@@ -12,7 +12,7 @@ import {
   getAssetConfig,
 } from "staking-dashboard/lib/configs/asset";
 import { formatBigInt, formatTimestamp } from "staking-dashboard/lib/helpers";
-import { formatPowerFactorPrecise } from "staking-dashboard/lib/power-factor-utils";
+import { formatPowerFactorPrecise } from "staking-dashboard/lib/powerFactorUtils";
 
 // Import ABIs
 import ERC20Abi from "staking-dashboard/lib/abi/ERC20.json";

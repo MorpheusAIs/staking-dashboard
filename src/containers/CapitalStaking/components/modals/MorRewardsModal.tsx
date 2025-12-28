@@ -12,8 +12,6 @@ import {
   useRecipe,
 } from "@chakra-ui/react";
 import { useCapitalStaking } from "staking-dashboard/hooks/useCapitalStaking";
-import { useNetwork } from "../../../NetworkProvider";
-import { getContractAddress } from "staking-dashboard/lib/networks";
 import { useContractPowerFactor } from "staking-dashboard/hooks/useContractPowerFactor";
 import { useForm } from "react-hook-form";
 import { AssetIcon } from "staking-dashboard/components/Icons";
@@ -21,10 +19,15 @@ import { GoLock } from "react-icons/go";
 import { GoUnlock } from "react-icons/go";
 import LockPeriodSelector from "staking-dashboard/components/LockPeriodSelector";
 import { Controller } from "react-hook-form";
-import { durationToSeconds } from "staking-dashboard/lib/power-factor-utils";
+import {
+  durationToSeconds,
+  TimeUnit,
+} from "staking-dashboard/lib/powerFactorUtils";
 import { buttonRecipe } from "staking-dashboard/lib/configs/theme";
 import { useModalActions, useModalState } from "../../../ModalProvider";
 import { useSelectedAsset } from "../../../SelectedAssetProvider";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { rewardsSchemaValidation } from "../../helper";
 
 export type MorRewardsModalProps = {
   open: boolean;
@@ -45,11 +48,9 @@ export const MorRewardsModal: React.FC<MorRewardsModalProps> = (props) => {
     onHandleLockMorRewards,
     isProcessingClaim,
     isProcessingChangeLock,
-    networkEnv,
     l1ChainId,
   } = useCapitalStaking();
   const { selectedAsset, selectedAssetCanClaim } = useSelectedAsset();
-  // @TODO refactor this, component need to be dumb
   const { onHandleSetModal } = useModalActions();
   const { activeModal } = useModalState();
   const {
@@ -57,38 +58,33 @@ export const MorRewardsModal: React.FC<MorRewardsModalProps> = (props) => {
     handleSubmit,
     reset,
     watch,
+    clearErrors,
     formState: { errors },
   } = useForm({
-    mode: "onChange",
-    // @TODO validation schema: extract from deposit schema validation
+    mode: "all",
+    resolver: yupResolver(
+      rewardsSchemaValidation({
+        currentAsset: assets[selectedAsset],
+        selectedAsset,
+      })
+    ),
     defaultValues: {
       lockDuration: {
         duration: "7",
-        unit: "Days" as "Days" | "Months" | "Years",
+        unit: "Days" as TimeUnit,
       },
     },
   });
 
-  // @TODO FOR TESTING ONLY
-  // const activeModal = "lockMorRewards";
-  // const activeModal = "claimMorRewards";
-
   const recipe = useRecipe({ recipe: buttonRecipe });
-
-  // =============== STATE
-
-  // =============== API
 
   // =============== VARIABLES
   const styles = recipe({ visual: "solid" });
   const lockDuration = watch("lockDuration");
   const lockValue = lockDuration?.duration;
   const lockUnit = lockDuration?.unit;
-  const poolContractAddress = getContractAddress(
-    l1ChainId,
-    "distributorV2",
-    "mainnet"
-  );
+  const isLockMode = activeModal === "lockMorRewards";
+  const isClaimMode = activeModal === "claimMorRewards";
 
   // Initialize power factor hook
   const powerFactor = useContractPowerFactor({
@@ -97,22 +93,15 @@ export const MorRewardsModal: React.FC<MorRewardsModalProps> = (props) => {
     lockUnit,
     lockValue,
   });
-  // Add network detection
-  const { currentChainId, switchToChain, isNetworkSwitching } = useNetwork();
 
-  const isLockMode = activeModal === "lockMorRewards";
-  const isClaimMode = activeModal === "claimMorRewards";
   const currentSelectedAsset = assets[selectedAsset];
   const cleanedValue = currentSelectedAsset.claimableAmountFormatted.replace(
     /,/g,
     ""
   );
 
-  // @TODO uncommment
-  // const claimableAmount = parseFloat(cleanedValue) || 0;
-  const claimableAmount = 1000;
+  const claimableAmount = parseFloat(cleanedValue) || 0;
   const symbol = selectedAsset;
-  const icon = currentSelectedAsset.config.icon;
   const claimableAmountFormatted =
     currentSelectedAsset.claimableAmountFormatted;
   const canClaim = selectedAssetCanClaim && claimableAmount > 0;
@@ -125,41 +114,33 @@ export const MorRewardsModal: React.FC<MorRewardsModalProps> = (props) => {
   } = powerFactor.currentResult || {};
 
   // =============== EVENTS
-  const onHandleSubmit = async () => {
-    if (isLockMode) {
-      if (!selectedAsset) return;
+  const onHandleLockRewards = async () => {
+    if (!isLockMode) return;
+    if (!selectedAsset) return;
 
-      const lockDurationSeconds = durationToSeconds(lockValue, lockUnit);
-      if (lockDurationSeconds <= BigInt(0)) {
-        console.error("Invalid lock duration");
-        return;
-      }
-
-      try {
-        // Lock rewards for the selected asset
-        await onHandleLockMorRewards(symbol, lockDurationSeconds);
-        // @TODO test this
-        onHandleSetModal(null);
-      } catch (error) {
-        console.error("Error locking rewards:", error);
-        // Error handling is done in the context via toast notifications
-      }
+    const lockDurationSeconds = durationToSeconds(lockValue, lockUnit);
+    if (lockDurationSeconds <= BigInt(0)) {
+      console.error("Invalid lock duration");
+      return;
     }
 
-    if (isClaimMode) {
-      if (!selectedAsset) return;
+    try {
+      await onHandleLockMorRewards(symbol, lockDurationSeconds);
+    } catch (error) {
+      console.error("Error locking rewards:", error);
+    }
+  };
 
-      try {
-        // Claim rewards for the selected asset
-        if (canClaim) {
-          await onHandleClaimMorRewards(symbol);
-        }
-        // @TODO test this
-        onHandleSetModal(null);
-      } catch (error) {
-        console.error("Error claiming rewards:", error);
-        // Error handling is done in the context via toast notifications
+  const onHandleClaim = async () => {
+    if (!isClaimMode || !selectedAsset) return;
+    try {
+      // Claim rewards for the selected asset
+      if (canClaim) {
+        await onHandleClaimMorRewards(symbol);
       }
+    } catch (error) {
+      console.error("Error claiming rewards:", error);
+      // Error handling is done in the context via toast notifications
     }
   };
 
@@ -246,7 +227,7 @@ export const MorRewardsModal: React.FC<MorRewardsModalProps> = (props) => {
         </Stack>
         {warning && (
           <Stack mt={1}>
-            <Text fontSize={"xs"} color="gray.400">
+            <Text fontSize={"xs"} color="secondaryText">
               {warning}
             </Text>
           </Stack>
@@ -274,10 +255,11 @@ export const MorRewardsModal: React.FC<MorRewardsModalProps> = (props) => {
             disabled={buttonDisableCondition}
             css={styles}
             width="full"
+            loadingText="Locking Rewards..."
           >
             Lock MOR Rewards
           </Button>
-          <Text textAlign={"center"} color="gray.400" fontSize="sm">
+          <Text textAlign={"center"} color="secondaryText" fontSize="sm">
             ⚠️ Locking requires ~0.001 ETH for cross-chain gas
           </Text>
         </>
@@ -290,13 +272,15 @@ export const MorRewardsModal: React.FC<MorRewardsModalProps> = (props) => {
         <>
           <Button
             loading={isProcessingClaim}
+            onClick={onHandleClaim}
             disabled={buttonDisableCondition}
             css={styles}
             width="full"
+            loadingText="Claiming Rewards..."
           >
             Claim MOR Rewards
           </Button>
-          <Text textAlign={"center"} color="gray.400" fontSize="sm">
+          <Text textAlign={"center"} color="secondaryText" fontSize="sm">
             ⚠️ Claims require ~0.001 ETH for cross-chain gas. MOR tokens will be
             minted on Arbitrum One
           </Text>
@@ -306,19 +290,17 @@ export const MorRewardsModal: React.FC<MorRewardsModalProps> = (props) => {
   };
 
   const renderSelectedAssetData = () => {
-    // @TODO test this
     if (!currentSelectedAsset)
       return (
         <Stack>
           <Text>No asset selected.</Text>
-          {/**@TODO */}
-          <Button>Close</Button>
+          <Button onClick={() => onHandleSetModal(null)}>Close</Button>
         </Stack>
       );
 
     return (
       <Stack>
-        <form onSubmit={handleSubmit(onHandleSubmit)}>
+        <form onSubmit={handleSubmit(onHandleLockRewards)}>
           {renderSelectedAssetDisplay()}
           {isLockMode && selectedAsset && (
             <Controller
@@ -345,12 +327,16 @@ export const MorRewardsModal: React.FC<MorRewardsModalProps> = (props) => {
     <Dialog.Root
       open={open}
       onOpenChange={(e) => {
-        // reset all the errors state or value when dialog is closed
-        reset();
+        if (isProcessingClaim || isProcessingChangeLock) return;
         onHandleOpen(e.open);
+      }}
+      onExitComplete={() => {
+        reset();
+        clearErrors();
       }}
       lazyMount
       placement={"center"}
+      trapFocus={false}
     >
       <Portal>
         <Dialog.Backdrop />
@@ -363,7 +349,7 @@ export const MorRewardsModal: React.FC<MorRewardsModalProps> = (props) => {
             </Dialog.Header>
             <Dialog.Body>
               <Stack gap={4}>
-                <Text color="gray.400">
+                <Text color="secondaryText">
                   {isLockMode
                     ? "Lock your MOR rewards for an increased power factor to earn more rewards in the future."
                     : "Claim rewards earned by staking capital to Morpheus."}
