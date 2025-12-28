@@ -933,7 +933,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
           : undefined,
       });
     }
-  }, [l1ChainId, approveHash, isApprovalError]);
+  }, [l1ChainId, approveHash, isApprovalError, approvalError]);
 
   // =============== VARIABLES
   const isProcessingDeposit =
