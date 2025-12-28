@@ -695,7 +695,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
     if (isStakeSuccess && stakeHash && stakeHash !== lastHandledStakeHash) {
       const txUrl = getTransactionUrl(l1ChainId, stakeHash);
       showToast({
-        title: "Stake confimed!",
+        title: "Stake confirmed!",
         description: "Your stake transaction has been confirmed",
         id: "stake-success",
         type: "success",
@@ -714,7 +714,6 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
     l1ChainId,
     stakeHash,
     networkEnv,
-    isStakeError,
     isStakeSuccess,
     assetContractData,
     lastHandledStakeHash,
@@ -803,7 +802,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
   useEffect(() => {
     if (isClaimError && claimError && claimHash) {
       const errorMessage =
-        (withdrawError as BaseError)?.shortMessage || claimError.message;
+        (claimError as BaseError)?.shortMessage || claimError.message;
 
       const txUrl = getTransactionUrl(l1ChainId || 1, claimHash);
 
@@ -820,7 +819,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
           : undefined,
       });
     }
-  }, [isWithdrawError, withdrawError, withdrawHash, l1ChainId]);
+  }, [isClaimError, claimError, claimHash, l1ChainId]);
 
   // -------------- LOCK CLAIM HANDLERS ----------------
   useEffect(() => {
