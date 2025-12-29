@@ -5,7 +5,12 @@ import {
   ExtractChainConfigArgs,
   ExtractChainConfigReturn,
 } from "staking-dashboard/@types/helpers";
-import { SUBNET_CONFIG } from "./configs/subnet.config";
+import { AssetSymbol } from "./configs/asset";
+import {
+  SUBNET_CONFIG,
+  SubnetConfig,
+  TEST_SUBNET_CONFIG,
+} from "./configs/subnet.config";
 
 // Helper to ensure string arrays for RPC URLs
 export function ensureStringArray(
@@ -175,6 +180,8 @@ export const formatStakerData = (
   let lastStake: bigint;
   let claimLockEndRaw: bigint;
 
+  const subnetConfig = getSubnetConfig(isTestnet);
+
   if (!stakerData)
     return {
       stakedRaw: BigInt(0),
@@ -211,7 +218,7 @@ export const formatStakerData = (
     // For mainnet, calculate claimLockEnd
     claimLockEndRaw = BigInt(0); // Default to 0
     if (lastStake !== BigInt(0)) {
-      const lpSeconds = SUBNET_CONFIG.lockPeriodInSeconds;
+      const lpSeconds = subnetConfig.lockPeriodInSeconds;
       claimLockEndRaw = BigInt(Number(lastStake) + lpSeconds);
     }
   }
@@ -223,7 +230,7 @@ export const formatStakerData = (
     claimLockEndRaw === BigInt(0) ||
     Number(claimLockEndRaw) < Number(lastStake)
   ) {
-    const lpSeconds = SUBNET_CONFIG.lockPeriodInSeconds;
+    const lpSeconds = subnetConfig.lockPeriodInSeconds;
     effectiveClaimLockEnd = BigInt(Number(lastStake) + lpSeconds);
   }
 
@@ -265,7 +272,7 @@ export const formatStakerData = (
 // Helper to convert smallest unit (wei-like) to MOR
 export const toMOR = (value: number) => {
   const morValue = Number(value) / 1e18;
-  return isNaN(morValue) ? "0" : Math.floor(morValue).toLocaleString();
+  return isNaN(morValue) ? "0" : Math.ceil(morValue).toLocaleString();
 };
 
 export const formatDuration = (seconds: number) => {
@@ -297,4 +304,151 @@ export const formatTimeDuration = (seconds: number): string => {
 
   const value = Math.floor(seconds / 86400);
   return value === 1 ? "day" : "days";
+};
+
+export function formatTimestamp(
+  timestamp: bigint | number | undefined
+): string {
+  if (timestamp === undefined || timestamp === null) {
+    return "--- --, ----";
+  }
+  try {
+    const tsNumber = Number(timestamp);
+
+    if (isNaN(tsNumber)) {
+      return "Invalid Number";
+    }
+    if (tsNumber === 0) {
+      return "Never";
+    }
+
+    // Explicitly check if it's likely a timestamp (seconds since epoch)
+    // Assuming timestamps are generally > year 2000 (approx 946,684,800 seconds)
+    if (tsNumber > 946684800) {
+      const date = new Date(tsNumber * 1000);
+      if (isNaN(date.getTime())) {
+        console.error(
+          "[formatTimestamp] Invalid Date object created from timestamp:",
+          tsNumber
+        );
+        return "Invalid Date";
+      }
+      const formattedDate = date.toLocaleString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+      return formattedDate;
+    } else {
+      // Treat as duration or unexpected small number
+      // Heuristic check for duration vs timestamp
+      const days = Math.floor(tsNumber / 86400);
+      if (days > 0) return `${days} day${days > 1 ? "s" : ""}`;
+      const hours = Math.floor(tsNumber / 3600);
+      if (hours > 0) return `${hours} hour${hours > 1 ? "s" : ""}`;
+      const minutes = Math.floor(tsNumber / 60);
+      if (minutes > 0) return `${minutes} minute${minutes > 1 ? "s" : ""}`;
+      return `${tsNumber} seconds`; // Handle very short durations
+    }
+  } catch (e) {
+    console.error(
+      "[formatTimestamp] Error formatting timestamp/duration:",
+      timestamp,
+      e
+    );
+    return "Invalid Data";
+  }
+}
+
+export function formatBigInt(
+  value: bigint | undefined,
+  decimals: number = 18,
+  precision: number = 2
+): string {
+  if (value === undefined) return "---";
+  try {
+    const formatted = formatUnits(value, decimals);
+    const num = parseFloat(formatted);
+    if (isNaN(num)) return "Error";
+    // Format with commas and specified precision
+    return num.toLocaleString("en-US", {
+      minimumFractionDigits: precision,
+      maximumFractionDigits: precision,
+    });
+  } catch (e) {
+    console.error("Error formatting bigint:", value, e);
+    return "Error";
+  }
+}
+
+// Helper function to format balance with asset-specific decimal rules
+export const formatBalanceDisplay = (
+  numStr: string,
+  assetSymbol: AssetSymbol
+): string => {
+  // Handle invalid/empty input
+  if (!numStr || numStr === "undefined" || numStr === "null") {
+    return "0.00";
+  }
+
+  const num = Number(numStr);
+  // Handle NaN or invalid numbers
+  if (isNaN(num) || num === 0) return "0.00";
+
+  // Convert to string and find decimal point
+  const str = num.toString();
+  const decimalIndex = str.indexOf(".");
+
+  // Asset-specific formatting rules
+  let targetDecimals: number;
+  if (assetSymbol === "wETH" || assetSymbol === "stETH") {
+    // wETH and stETH: 3 decimals if below 1, otherwise 2
+    targetDecimals = num < 1 ? 3 : 2;
+  } else if (assetSymbol === "wBTC") {
+    // wBTC: 4 decimals if below 1, otherwise 2
+    targetDecimals = num < 1 ? 4 : 2;
+  } else {
+    // USDC, USDT and others: 2 decimals
+    targetDecimals = 2;
+  }
+
+  if (decimalIndex === -1) {
+    // No decimal point, add appropriate zeros
+    return str + "." + "0".repeat(targetDecimals);
+  } else if (str.length - decimalIndex - 1 <= targetDecimals) {
+    // Already has target or fewer decimal places, pad if needed
+    const currentDecimals = str.length - decimalIndex - 1;
+    return str + "0".repeat(targetDecimals - currentDecimals);
+  } else {
+    // Truncate to target decimal places (don't round)
+    return str.slice(0, decimalIndex + targetDecimals + 1);
+  }
+};
+
+/**
+ * Safely parse deposit amount from formatted string
+ */
+export const parseDepositAmount = (
+  depositValue: string | undefined
+): number => {
+  try {
+    if (!depositValue || typeof depositValue !== "string") {
+      return 0;
+    }
+    const cleanedValue = depositValue.replace(/,/g, "");
+    const parsed = parseFloat(cleanedValue);
+    return isNaN(parsed) ? 0 : parsed;
+  } catch (error) {
+    console.error("Error parsing deposit amount:", error);
+    return 0;
+  }
+};
+
+export const getSubnetConfig = (isTestnet: boolean): SubnetConfig => {
+  if (isTestnet) {
+    return TEST_SUBNET_CONFIG;
+  }
+  return SUBNET_CONFIG;
 };

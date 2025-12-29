@@ -3,14 +3,16 @@ import { VStack, HStack, Text, Alert, Button, Stack } from "@chakra-ui/react";
 import StakeForm from "./StakeForm";
 import WithdrawForm from "./WithdrawForm";
 import StakingPosition from "./StakingPosition";
-import { useStaking } from "staking-dashboard/hooks/useStaking";
-import { SUBNET_CONFIG } from "staking-dashboard/lib/configs/subnet.config";
-import { useChainId } from "wagmi";
+import { useStaking } from "staking-dashboard/hooks/useSubnetStaking";
+import { getSubnetConfig } from "staking-dashboard/lib/helpers";
+import { useChainId, useSwitchChain } from "wagmi";
 import { useEffect, useRef, useState } from "react";
-import { arbitrumSepolia } from "viem/chains";
+import { arbitrum, arbitrumSepolia, mainnet } from "viem/chains";
 import { formatEther } from "viem";
 import { NetworkDropdown } from "staking-dashboard/components/NetworkSwitchDropdown";
 import SubnetStats from "../SubnetStats";
+import Image from "next/image";
+import LogoSrc from "../../../public/logo.png";
 
 /**
  * ===========================
@@ -25,8 +27,9 @@ export const SubnetStaking = () => {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   // =============== VARIABLES
-  const subnetId = SUBNET_CONFIG.subnetID || "";
   const isTestnet = chainId === arbitrumSepolia.id;
+  const subnetConfig = getSubnetConfig(isTestnet);
+  const subnetId = subnetConfig.subnetID;
 
   // =============== REFS
   // Ref to store the approval refresh function
@@ -69,8 +72,9 @@ export const SubnetStaking = () => {
         console.warn("refetchStakerDataForUser is not available");
       }
     },
-    lockPeriodInSeconds: SUBNET_CONFIG.lockPeriodInSeconds,
+    lockPeriodInSeconds: subnetConfig.lockPeriodInSeconds,
   });
+  const { switchChain } = useSwitchChain();
 
   // =============== EVENTS
   const onToggleAlert = (message: string | null) => {
@@ -83,6 +87,12 @@ export const SubnetStaking = () => {
     refreshApprovalRef.current = checkAndUpdateApprovalNeeded;
   }, [checkAndUpdateApprovalNeeded]);
 
+  useEffect(() => {
+    if (!isTestnet && chainId === mainnet.id) {
+      switchChain({ chainId: arbitrum.id });
+    }
+  }, [chainId, isTestnet]);
+
   // =============== VARIABLES
   const formattedTokenBalance = tokenBalance
     ? parseFloat(formatEther(tokenBalance))
@@ -91,7 +101,7 @@ export const SubnetStaking = () => {
   // =============== VIEWS
   return (
     <VStack
-      gap={{ base: 4, md: 6 }}
+      gap={{ base: 4, md: 4 }}
       width="full"
       h="full"
       mb={2}
@@ -113,6 +123,31 @@ export const SubnetStaking = () => {
           </Button>
         </Alert.Root>
       )}
+      <VStack
+        width={"full"}
+        justifyContent={"center"}
+        alignItems={"center"}
+        gap={3}
+        pb={2}
+      >
+        <Image
+          src={LogoSrc.src}
+          width={100}
+          height={100}
+          alt="Logo"
+          style={{ borderRadius: "12px" }}
+        />
+        <Stack justifyContent={"center"} alignItems={"center"}>
+          <Text fontSize={"2xl"} fontWeight={"bold"}>
+            {subnetConfig.name}
+          </Text>
+          {subnetConfig.description && (
+            <Text fontSize={"md"} color="secondaryText" textAlign={"center"}>
+              {subnetConfig.description}
+            </Text>
+          )}
+        </Stack>
+      </VStack>
       <SubnetStats tokenSymbol={tokenSymbol} isTestnet={isTestnet} />
       <VStack
         bg="card"

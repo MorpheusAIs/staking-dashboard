@@ -7,8 +7,9 @@ import {
 } from "wagmi/chains";
 import {
   ChainConfig,
-  NetworkEnvironment,
+  ContractAddresses,
 } from "staking-dashboard/@types/common";
+import { NetworkEnvironment } from "./configs/asset";
 import { mainnetRpcUrls } from "./configs/constants";
 import { ensureStringArray, toContract } from "./helpers";
 
@@ -144,6 +145,16 @@ export const testnetChains: Record<string, ChainConfig> = {
     isL2: true,
     layerZeroEndpointId: 10231,
   },
+};
+
+// Get contract address for a specific chain
+export const getContractAddress = (
+  chainId: number,
+  contractName: keyof ContractAddresses,
+  environment: NetworkEnvironment
+): string => {
+  const chain = getChainById(chainId, environment);
+  return chain?.contracts?.[contractName]?.address || "";
 };
 
 // Get a specific chain by id

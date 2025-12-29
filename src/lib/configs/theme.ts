@@ -91,11 +91,11 @@ const config = defineConfig({
         secondaryTextHover: {
           value: "#E0FFE6",
         },
-        textPrimary: {
+        primaryTextValue: {
           value: "#FFFFFF",
         },
-        textSecondary: {
-          value: "#6B7280",
+        secondaryTextValue: {
+          value: "#A1A1AA",
         },
         background: {
           value:
@@ -118,18 +118,14 @@ const config = defineConfig({
     // ============== SEMANTIC TOKENS
     semanticTokens: {
       colors: {
-        // @TODO fix this
-        // bg: {
-        //   value: "{colors.background}",
-        // },
         card: {
           value: "{colors.boxBackground}",
         },
         text: {
-          value: "{colors.textPrimary}",
+          value: "{colors.primaryTextValue}",
         },
-        textSecondary: {
-          value: "{colors.textSecondary}",
+        secondaryText: {
+          value: "{colors.secondaryTextValue}",
         },
         border: {
           value: "{colors.borderColor}",

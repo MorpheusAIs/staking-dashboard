@@ -1,7 +1,6 @@
 "use client";
 import {
   Button,
-  HStack,
   Input,
   InputGroup,
   Stack,
@@ -12,9 +11,8 @@ import {
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
-import { SUBNET_CONFIG } from "staking-dashboard/lib/configs/subnet.config";
 import { formatUnits, parseUnits } from "viem";
 import { formatStakerData } from "staking-dashboard/lib/helpers";
 import { buttonRecipe } from "staking-dashboard/lib/configs/theme";
@@ -138,7 +136,7 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
     let amountToWithdrawWei: bigint;
     try {
       amountToWithdrawWei = parseUnits(amountUserWantsToWithdrawStr, 18); // Convert user input (e.g., "4") to BigInt wei
-    } catch (error) {
+    } catch {
       return onToggleAlert(
         "Invalid amount format. Please enter a valid number."
       );
@@ -249,7 +247,7 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
                   <Text fontSize={"sm"} fontWeight={"medium"}>
                     Amount to withdraw
                   </Text>
-                  <Text fontSize={"xs"} color="gray.400">
+                  <Text fontSize={"xs"} color="secondaryText">
                     Time until unlock:
                     <span
                       style={{
