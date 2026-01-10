@@ -100,7 +100,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
     data: withdrawHash,
     writeContractAsync: withdrawAsync,
     isPending: isSendingWithdraw,
-  } = useWriteContract({});
+  } = useWriteContract();
   const {
     data: claimHash,
     writeContractAsync: claimAsync,
@@ -604,6 +604,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
         account: userAddress,
       });
     } catch (error) {
+      setIsWithdrawFetching(false);
       // If simulation fails, throw the actual contract error
       const contractError = (error as Error).message || "";
       throw new Error(`Contract simulation failed: ${contractError}`);
@@ -617,6 +618,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
           gas: BigInt(1200000),
         };
 
+        setIsWithdrawFetching(false);
         return await withdrawAsync(txParams);
       },
       {
@@ -625,6 +627,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
         error: `${asset} withdrawal failed`,
       },
       () => {
+        console.log("withdraw error callback");
         setIsWithdrawFetching(false);
       }
     );

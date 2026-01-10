@@ -9,6 +9,7 @@ import {
   useRecipe,
   VStack,
 } from "@chakra-ui/react";
+import { size } from "lodash";
 import { Controller, UseFormReturn } from "react-hook-form";
 import { buttonRecipe } from "staking-dashboard/lib/configs/theme";
 import { formatUnits } from "viem";
@@ -137,7 +138,7 @@ export const WithdrawForm: React.FC<WithdrawFormProps> = (props) => {
             borderRadius={"sm"}
             css={styles}
             loading={isProcessingWithdraw}
-            disabled={disabledCommonCondition}
+            disabled={disabledCommonCondition || size(errors) > 0}
             loadingText={"Processing Withdraw..."}
           >
             Confirm Withdraw

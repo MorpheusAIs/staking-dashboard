@@ -132,8 +132,8 @@ export const SubnetStaking = () => {
       >
         <Image
           src={LogoSrc.src}
-          width={100}
-          height={100}
+          width={125}
+          height={125}
           alt="Logo"
           style={{ borderRadius: "12px" }}
         />

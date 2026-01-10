@@ -136,6 +136,12 @@ const config = defineConfig({
       },
     },
   },
+  globalCss: {
+    body: {
+      color: "{colors.text}",
+      background: "{colors.background}",
+    },
+  },
 });
 
 export const system = createSystem(defaultConfig, config);

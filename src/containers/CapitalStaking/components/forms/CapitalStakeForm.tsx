@@ -21,6 +21,7 @@ import { useContractPowerFactor } from "staking-dashboard/hooks/useContractPower
 import LockPeriodSelector, {
   LockPeriodDuration,
 } from "staking-dashboard/components/LockPeriodSelector";
+import { size } from "lodash";
 
 export type CapitalStakingFormProps = {
   assets: Record<AssetSymbol, AssetData>;
@@ -142,7 +143,10 @@ export const CapitalStakingForm: React.FC<CapitalStakingFormProps> = (
   const zeroBalance = !rawBalance || rawBalance === BigInt(0);
   const commonDisableCondition = isProcessingDeposit || zeroBalance;
   const buttonDisableCondition =
-    commonDisableCondition || isNetworkSwitching || disabled;
+    commonDisableCondition ||
+    isNetworkSwitching ||
+    disabled ||
+    size(errors) > 0;
 
   // =============== RENDER
   const renderButtonText = () => {
