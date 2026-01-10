@@ -627,7 +627,6 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
         error: `${asset} withdrawal failed`,
       },
       () => {
-        console.log("withdraw error callback");
         setIsWithdrawFetching(false);
       }
     );
