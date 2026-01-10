@@ -99,7 +99,7 @@ const config = defineConfig({
         },
         background: {
           value:
-            "linear-gradient(to bottom, {colors.secondary} 60%,rgba(23, 156, 101, 0.16) 100%);",
+            "linear-gradient(to bottom, {colors.secondary} 60%, #051f14 100%);",
         },
         boxBackground: {
           value: "#FFFFFF14",

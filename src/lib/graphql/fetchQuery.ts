@@ -21,7 +21,7 @@ export async function fetchQuery({
   chain,
 }: {
   query: string;
-  variables?: Record<string, any>;
+  variables?: Record<string, unknown>;
   chain: number;
 }) {
   const response = await fetch(GRAPHQL_ENDPOINTS[chain], {
@@ -35,7 +35,9 @@ export async function fetchQuery({
   const json = await response.json();
 
   if (json.errors) {
-    throw new Error(json.errors.map((e: any) => e.message).join("\n"));
+    throw new Error(
+      json.errors.map((e: { message: string }) => e?.message).join("\n")
+    );
   }
 
   return json.data;

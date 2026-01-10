@@ -8,7 +8,7 @@ import {
   Input,
   useRecipe,
 } from "@chakra-ui/react";
-import { Controller } from "react-hook-form";
+import { Controller, UseFormReturn } from "react-hook-form";
 import { AssetData } from "staking-dashboard/@types/useCapitalStaking";
 import AssetDropdown from "staking-dashboard/components/AssetDropdown";
 import { AssetSymbol } from "staking-dashboard/lib/configs/asset";
@@ -32,7 +32,10 @@ export type CapitalStakingFormProps = {
     depositAmount: string;
     lockDuration: LockPeriodDuration;
   }) => void;
-  form: any;
+  form: UseFormReturn<{
+    depositAmount: string;
+    lockDuration: LockPeriodDuration;
+  }>;
   isProcessingDeposit: boolean;
   currentlyNeedsApproval: boolean;
   disabled?: boolean;

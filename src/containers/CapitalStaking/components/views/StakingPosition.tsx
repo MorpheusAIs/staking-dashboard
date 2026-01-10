@@ -167,7 +167,7 @@ export const StakingPosition = memo(() => {
       }
     };
     fetchTokenPrices();
-  }, [assets]);
+  }, [assets, networkEnv]);
 
   // =============== MEMO
   // Create a mapping of asset symbols to their emission data for easy lookup
@@ -305,6 +305,8 @@ export const StakingPosition = memo(() => {
   // =============== VIEWS
   return renderView();
 });
+
+StakingPosition.displayName = "StakingPosition";
 
 /**
  * ===========================

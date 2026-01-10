@@ -19,7 +19,6 @@ import {
 } from "staking-dashboard/lib/networks";
 import {
   BaseError,
-  formatUnits,
   isAddress,
   maxInt256,
   parseEther,
@@ -49,7 +48,6 @@ import {
 } from "./helper";
 import SelectedAssetProvider from "../SelectedAssetProvider";
 import { useModalActions } from "../ModalProvider";
-import { set } from "lodash";
 
 export const CapitalStakingContext = createContext<CapitalStakingProps>(
   null as unknown as CapitalStakingProps

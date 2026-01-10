@@ -63,6 +63,8 @@ export function useSelectedAsset() {
   return ctx;
 }
 
+SelectedAssetProvider.displayName = "SelectedAssetProvider";
+
 /**
  * ===========================
  * EXPORTS

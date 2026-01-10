@@ -110,7 +110,7 @@ export const rewardsSchemaValidation = ({
 
           return true;
         })
-        .test("lock-period-error", "Invalid lock period", function (value) {
+        .test("lock-period-error", "Invalid lock period", function () {
           const { unit, duration } = this.parent;
           const path = this.path;
 
@@ -212,7 +212,7 @@ export const depositSchemaValidation = ({
 
           return true;
         })
-        .test("lock-period-error", "Invalid lock period", function (value) {
+        .test("lock-period-error", "Invalid lock period", function () {
           const { unit, duration } = this.parent;
           const path = this.path;
 

@@ -1,4 +1,4 @@
-import { arbitrum, arbitrumSepolia, mainnet } from "viem/chains";
+import { arbitrum, arbitrumSepolia } from "viem/chains";
 import { CreateAppKit } from "@reown/appkit";
 
 export type SubnetConfig = {

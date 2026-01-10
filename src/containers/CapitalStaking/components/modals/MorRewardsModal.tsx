@@ -245,8 +245,8 @@ export const MorRewardsModal: React.FC<MorRewardsModalProps> = (props) => {
 
   const renderFormFooter = () => {
     if (isLockMode) {
-      const buttonDisableCondition = !selectedAsset;
-      isProcessingChangeLock || isProcessingClaim;
+      const buttonDisableCondition =
+        !selectedAsset || isProcessingChangeLock || isProcessingClaim;
       return (
         <>
           <Button

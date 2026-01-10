@@ -6,7 +6,7 @@ import {
   SIDEBAR_WIDTH,
   SideBarItems,
 } from "staking-dashboard/lib/configs/constants";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 
 type SideBarContentProps = StackProps & {

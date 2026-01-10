@@ -3,7 +3,7 @@
 import { UserClaimEventsData } from "staking-dashboard/@types/useTotalMorEarned";
 import { toaster } from "staking-dashboard/components/ui/toaster";
 import { getChainById } from "staking-dashboard/lib/networks";
-import { ChainContract, formatUnits } from "viem";
+import { ChainContract } from "viem";
 import { mainnet } from "viem/chains";
 
 export const validatePreApproval = (
@@ -68,8 +68,8 @@ export const validatePreStake = ({
   return true;
 };
 
-const isChainContract = (obj: any): obj is ChainContract => {
-  return obj && typeof obj === "object" && "address" in obj;
+const isChainContract = (obj: unknown): obj is ChainContract => {
+  return !!obj && typeof obj === "object" && "address" in obj;
 };
 
 export const getCapitalV2Pools = () => {

@@ -41,7 +41,6 @@ export function getAssetIcon(symbol: AssetSymbol) {
  */
 export function AssetIcon({
   symbol,
-  className = "rounded-lg",
   size = 24,
 }: AssetIconProps & { symbol: AssetSymbol }) {
   const IconComponent = getAssetIcon(symbol);
