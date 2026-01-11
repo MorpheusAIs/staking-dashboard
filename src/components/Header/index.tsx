@@ -34,7 +34,7 @@ export const Header = () => {
   // =============== RENDER
   const renderIcon = () => {
     if (isDesktop === "lg") {
-      return <Image src={LogoSrc.src} width={60} height={60} alt="Logo" />;
+      return <Image src={LogoSrc.src} width={100} height={100} alt="Logo" />;
     }
     return <RxHamburgerMenu size={30} onClick={handleToggle} />;
   };

@@ -28,6 +28,7 @@ import { useModalActions, useModalState } from "../../../ModalProvider";
 import { useSelectedAsset } from "../../../SelectedAssetProvider";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { rewardsSchemaValidation } from "../../helper";
+import { size } from "lodash";
 
 export type MorRewardsModalProps = {
   open: boolean;
@@ -245,14 +246,14 @@ export const MorRewardsModal: React.FC<MorRewardsModalProps> = (props) => {
 
   const renderFormFooter = () => {
     if (isLockMode) {
-      const buttonDisableCondition = !selectedAsset;
-      isProcessingChangeLock || isProcessingClaim;
+      const buttonDisableCondition =
+        !selectedAsset || isProcessingChangeLock || isProcessingClaim;
       return (
         <>
           <Button
             type="submit"
             loading={isProcessingChangeLock}
-            disabled={buttonDisableCondition}
+            disabled={buttonDisableCondition || size(errors) > 0}
             css={styles}
             width="full"
             loadingText="Locking Rewards..."

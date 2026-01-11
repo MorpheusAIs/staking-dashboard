@@ -1,4 +1,4 @@
-import { arbitrum, arbitrumSepolia, mainnet } from "viem/chains";
+import { arbitrum, arbitrumSepolia } from "viem/chains";
 import { CreateAppKit } from "@reown/appkit";
 
 export type SubnetConfig = {
@@ -14,14 +14,14 @@ export type SubnetConfig = {
 };
 
 export const SUBNET_CONFIG: SubnetConfig = {
-  name: "Morpheus Asia",
+  name: "Your Subnet Name",
   subnetID:
-    "0x2e1f02e96a22a2c1236ac84d59f9a1b7e33fc4971ed7b32a25b54980bbc0b311",
+    "0x0000000000000000000000000000000000000000000000000000000000000000",
   lockPeriodInSeconds: 30 * 24 * 60 * 60,
-  minDeposit: 0.1,
+  minDeposit: 0,
   supportedNetwork: [arbitrum],
-  referralAddress: "0xf3199e9E17c703fC8f6b226d5a3Ad25c5588a370",
-  description: "Morpheus community events and tools for Asia",
+  referralAddress: "0x0000000000000000000000000000000000000000",
+  description: "Describe your subnet here",
   socialMediaLinks: {
     telegram: "",
     x: "",

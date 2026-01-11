@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNetwork } from "staking-dashboard/containers/NetworkProvider";
 import { getContractAddress } from "staking-dashboard/lib/networks";
 import {

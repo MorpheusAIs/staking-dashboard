@@ -19,7 +19,6 @@ import {
 } from "staking-dashboard/lib/networks";
 import {
   BaseError,
-  formatUnits,
   isAddress,
   maxInt256,
   parseEther,
@@ -49,7 +48,6 @@ import {
 } from "./helper";
 import SelectedAssetProvider from "../SelectedAssetProvider";
 import { useModalActions } from "../ModalProvider";
-import { set } from "lodash";
 
 export const CapitalStakingContext = createContext<CapitalStakingProps>(
   null as unknown as CapitalStakingProps
@@ -102,7 +100,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
     data: withdrawHash,
     writeContractAsync: withdrawAsync,
     isPending: isSendingWithdraw,
-  } = useWriteContract({});
+  } = useWriteContract();
   const {
     data: claimHash,
     writeContractAsync: claimAsync,
@@ -606,6 +604,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
         account: userAddress,
       });
     } catch (error) {
+      setIsWithdrawFetching(false);
       // If simulation fails, throw the actual contract error
       const contractError = (error as Error).message || "";
       throw new Error(`Contract simulation failed: ${contractError}`);
@@ -619,6 +618,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
           gas: BigInt(1200000),
         };
 
+        setIsWithdrawFetching(false);
         return await withdrawAsync(txParams);
       },
       {

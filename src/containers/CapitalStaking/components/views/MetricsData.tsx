@@ -107,6 +107,8 @@ export const MetricsData: React.FC<MetricsDataProps> = memo((props) => {
   );
 });
 
+MetricsData.displayName = "MetricsData";
+
 /**
  * ===========================
  * EXPORTS

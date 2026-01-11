@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toaster } from "staking-dashboard/components/ui/toaster";
 import {
-  formatStakingError,
-  formatTimePeriod,
   getMissingApprovalData,
   isStakeAmountInvalid,
   validateAndExtractChainConfig,
@@ -98,7 +96,7 @@ export const useStaking = (args: UseStakingProps) => {
             },
           });
         }
-      } catch (error) {
+      } catch {
         toaster.dismiss(id);
       }
     } else {
@@ -136,7 +134,7 @@ export const useStaking = (args: UseStakingProps) => {
 
         setNeedsApproval(approvalNeeded);
         return approvalNeeded;
-      } catch (error) {
+      } catch {
         setNeedsApproval(true);
         return true; // Assume approval needed on error
       }
@@ -250,14 +248,6 @@ export const useStaking = (args: UseStakingProps) => {
     try {
       const parsedAmount = parseEther(amount);
 
-      // Get network name for better logging
-      const networkType = isTestnet ? "testnet" : "mainnet";
-      const networkName = isTestnet
-        ? "Arbitrum Sepolia"
-        : networkChainId === 42161
-        ? "Arbitrum"
-        : "Base";
-
       // Both testnet (V2) and mainnet contracts use the same withdraw interface
       // withdraw(bytes32 subnetId_, uint256 amount_)
       await writeWithdraw(
@@ -325,11 +315,6 @@ export const useStaking = (args: UseStakingProps) => {
 
       // Mainnet staking flow
       if (!isTestnet) {
-        // For mainnet using BuilderSubnets
-        // Get the network name for clearer logging
-        const networkName =
-          networkChainId === CHAIN_ID.ARBITRUM ? "Arbitrum" : "Base";
-
         // For mainnet, we need to use deposit(bytes32,uint256) from BuildersAbi
         // Mainnet uses a different contract interface: Builders.json
         return await writeStake(
@@ -438,7 +423,6 @@ export const useStaking = (args: UseStakingProps) => {
     setIsNetworkSwitching(true);
     try {
       const targetNetwork = getNetworkName(networkChainId);
-      const networkType = isTestnet ? "testnet" : "mainnet";
 
       toaster.create({
         description: `Switching to ${targetNetwork}...`,
@@ -451,7 +435,7 @@ export const useStaking = (args: UseStakingProps) => {
         description: `Switched to ${targetNetwork} successfully!`,
         type: "success",
       });
-    } catch (error) {
+    } catch {
       toaster.create({
         description: `Failed to switch to ${getNetworkName(
           networkChainId
