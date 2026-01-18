@@ -492,7 +492,7 @@ export const CapitalStakingProvider: React.FC<CapitalStakingProviderProps> = (
 
     // For V2 claims, we need ETH for cross-chain gas fees to L2 (Arbitrum Sepolia)
     // The claim will trigger cross-chain communication via LayerZero
-    const ETH_FOR_CROSS_CHAIN_GAS = parseEther("0.01"); // 0.01 ETH for L2 gas
+    const ETH_FOR_CROSS_CHAIN_GAS = parseEther("0.001"); // 0.01 ETH for L2 gas
 
     await onHandleTransaction(
       () =>
